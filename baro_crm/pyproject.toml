@@ -1,0 +1,18 @@
+[project]
+name = "baro_crm"
+version = "0.0.1"
+description = "Baro Service operations CRM — Repair Job cockpit and executive insights for ERPNext"
+authors = [{ name = "Baro Service" }]
+requires-python = ">=3.10"
+readme = "README.md"
+license = { text = "MIT" }
+# Frappe / ERPNext are installed and managed by bench, not pip.
+dependencies = []
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["baro_crm*"]
+namespaces = false

@@ -1,0 +1,174 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Baro Service CRM Prototype</title>
+  <meta name="description" content="Interactive CRM prototype for Baro Service repair operations." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+
+  <aside class="sidebar" aria-label="Primary navigation">
+    <div class="brand-lockup">
+      <div class="brand-mark">BS</div>
+      <div>
+        <p class="eyebrow">Baro Service</p>
+        <h1>Service CRM</h1>
+      </div>
+    </div>
+
+    <nav class="nav-stack" aria-label="Workspace filters">
+      <button class="nav-item active" data-view="all"><span></span> Command Center</button>
+      <button class="nav-item" data-view="intake"><span></span> Live Calls</button>
+      <button class="nav-item" data-view="pipeline"><span></span> Repair Pipeline</button>
+      <button class="nav-item" data-view="dispatch"><span></span> Dispatch Board</button>
+      <button class="nav-item" data-view="finance"><span></span> Finance & Warranty</button>
+    </nav>
+
+    <div class="integration-card">
+      <p class="eyebrow">MVP bridge</p>
+      <strong>Zadarma -> Sheets -> AI -> ERPNext</strong>
+      <span>Every call becomes a searchable Repair Job with transcript, source, owner, and next action.</span>
+    </div>
+
+    <div class="sidebar-footer">
+      <button class="ghost-button" id="resetDemo">Reset demo</button>
+      <small>Static prototype. No real data is sent.</small>
+    </div>
+  </aside>
+
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Today, 9:42 AM</p>
+        <h2>Operations cockpit</h2>
+      </div>
+      <label class="command-search" for="globalSearch">
+        <span>Search</span>
+        <input id="globalSearch" type="search" placeholder="phone, customer, address, equipment, source" autocomplete="off" />
+      </label>
+      <div class="topbar-actions">
+        <button class="secondary-action" id="simulateCall">Simulate new call</button>
+        <button class="primary-action" id="quickCreate">Create Repair Job</button>
+      </div>
+    </header>
+
+    <section class="hero-strip" aria-label="Business status overview">
+      <div class="hero-copy">
+        <p class="eyebrow">One client chart</p>
+        <h3>Calls, repairs, invoices, technicians and warranty in one operational record.</h3>
+        <p>Designed around the Baro flow: incoming call, diagnostic sale, technician dispatch, estimate, repair, payment, warranty follow-up.</p>
+      </div>
+      <div class="status-ticker" id="statusTicker" aria-live="polite"></div>
+    </section>
+
+    <section class="metric-grid" aria-label="Key metrics">
+      <article class="metric-panel">
+        <span class="metric-label">Calls today</span>
+        <strong id="metricCalls">0</strong>
+        <small>from Zadarma real time calls</small>
+      </article>
+      <article class="metric-panel accent">
+        <span class="metric-label">Diagnostics paid</span>
+        <strong id="metricDiagnostics">0</strong>
+        <small>ready for technician assignment</small>
+      </article>
+      <article class="metric-panel warning">
+        <span class="metric-label">Needs follow-up</span>
+        <strong id="metricFollowup">0</strong>
+        <small>no client should disappear</small>
+      </article>
+      <article class="metric-panel danger">
+        <span class="metric-label">At risk</span>
+        <strong id="metricRisk">0</strong>
+        <small>missing address, owner, payment or ETA</small>
+      </article>
+    </section>
+
+    <section class="workspace-grid">
+      <section class="intake-panel module-panel" data-section="intake">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Live intake</p>
+            <h3>Zadarma calls waiting for review</h3>
+          </div>
+          <button class="text-button" id="showOnlyNew">Show new</button>
+        </div>
+        <div class="call-list" id="callList"></div>
+      </section>
+
+      <section class="pipeline-panel module-panel" data-section="pipeline">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Repair Job workflow</p>
+            <h3>Pipeline by operational stage</h3>
+          </div>
+          <div class="segmented-control" role="tablist" aria-label="Pipeline filter">
+            <button class="active" data-stage-filter="all">All</button>
+            <button data-stage-filter="sales">Sales</button>
+            <button data-stage-filter="production">Production</button>
+            <button data-stage-filter="money">Money</button>
+          </div>
+        </div>
+        <div class="kanban" id="kanban"></div>
+      </section>
+
+      <aside class="inspector module-panel" data-section="inspector" aria-live="polite">
+        <div class="section-heading tight">
+          <div>
+            <p class="eyebrow">Selected record</p>
+            <h3 id="inspectorTitle">Customer chart</h3>
+          </div>
+          <span class="record-id" id="recordId">RJ-2026-0001</span>
+        </div>
+        <div id="inspectorContent"></div>
+      </aside>
+    </section>
+
+    <section class="lower-grid">
+      <section class="dispatch-board module-panel" data-section="dispatch">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Production manager view</p>
+            <h3>Technician availability and assignments</h3>
+          </div>
+          <button class="text-button" id="autoAssign">Auto assign best fit</button>
+        </div>
+        <div class="tech-grid" id="techGrid"></div>
+      </section>
+
+      <section class="followup-board module-panel" data-section="finance">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Customer care</p>
+            <h3>Warranty, invoices and reminders</h3>
+          </div>
+          <button class="text-button" id="addFollowup">Add follow-up</button>
+        </div>
+        <div class="timeline" id="followupTimeline"></div>
+      </section>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <template id="callTemplate">
+    <button class="call-row" type="button">
+      <span class="call-pulse"></span>
+      <span class="call-main">
+        <strong></strong>
+        <small></small>
+      </span>
+      <span class="call-meta"></span>
+    </button>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>

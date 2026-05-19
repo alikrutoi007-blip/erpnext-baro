@@ -1,0 +1,17 @@
+include MANIFEST.in
+include requirements.txt
+include *.json
+include *.md
+include *.py
+include *.txt
+recursive-include baro_crm *.css
+recursive-include baro_crm *.csv
+recursive-include baro_crm *.html
+recursive-include baro_crm *.ico
+recursive-include baro_crm *.js
+recursive-include baro_crm *.json
+recursive-include baro_crm *.md
+recursive-include baro_crm *.png
+recursive-include baro_crm *.py
+recursive-include baro_crm *.svg
+recursive-include baro_crm *.txt

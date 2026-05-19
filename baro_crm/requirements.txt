@@ -1,0 +1,2 @@
+# Frappe / ERPNext provide their own dependencies via bench.
+# Add only baro_crm-specific runtime dependencies below.

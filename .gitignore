@@ -1,0 +1,26 @@
+# Secrets — must never be committed
+.env
+*.env.local
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Logs
+logs/*.log
+logs/*.jsonl
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor / tooling session state
+.vscode/
+.idea/
+.claude/
+*.swp
+
+# Virtualenv (lives outside the project but listed for safety)
+.venv/

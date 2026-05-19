@@ -1,0 +1,1448 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0b1220" />
+<title>Baro CRM - Repair Operations Command Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #edf1f7;
+    --bg-grid: rgba(15, 23, 42, .035);
+    --surface: #ffffff;
+    --surface-2: #f6f8fb;
+    --surface-3: #eef2f7;
+    --ink: #0b1220;
+    --ink-2: #273449;
+    --muted: #667085;
+    --faint: #98a2b3;
+    --line: #dce3ec;
+    --line-2: #cbd5e1;
+    --nav: #0b1220;
+    --nav-2: #111c32;
+    --brand: #e53935;
+    --brand-dark: #b91c1c;
+    --blue: #2563eb;
+    --cyan: #0891b2;
+    --green: #059669;
+    --amber: #b45309;
+    --purple: #7c3aed;
+    --red: #dc2626;
+    --slate: #475569;
+    --blue-bg: #dbeafe;
+    --cyan-bg: #cffafe;
+    --green-bg: #d1fae5;
+    --amber-bg: #fef3c7;
+    --purple-bg: #ede9fe;
+    --red-bg: #fee2e2;
+    --slate-bg: #e2e8f0;
+    --radius-sm: 8px;
+    --radius: 14px;
+    --radius-lg: 22px;
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, .08);
+    --shadow: 0 12px 28px rgba(15, 23, 42, .10);
+    --shadow-lg: 0 30px 80px rgba(15, 23, 42, .22);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    color: var(--ink);
+    font-family: Manrope, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 14px;
+    background:
+      linear-gradient(135deg, rgba(229, 57, 53, .07), transparent 28%),
+      radial-gradient(circle at 85% 12%, rgba(37, 99, 235, .10), transparent 30%),
+      linear-gradient(var(--bg-grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px),
+      var(--bg);
+    background-size: auto, auto, 28px 28px, 28px 28px, auto;
+    overflow: hidden;
+    font-variant-numeric: tabular-nums;
+  }
+
+  button, input, select, textarea { font: inherit; }
+  button { border: 0; background: transparent; color: inherit; cursor: pointer; }
+  a { color: inherit; }
+  :focus-visible { outline: 3px solid rgba(37, 99, 235, .38); outline-offset: 2px; border-radius: 10px; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .app {
+    height: 100vh;
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+
+  .sidebar {
+    background: linear-gradient(180deg, var(--nav), var(--nav-2));
+    color: #cbd5e1;
+    padding: 22px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    border-right: 1px solid rgba(255,255,255,.08);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 8px 16px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+
+  .brand-mark {
+    width: 42px;
+    height: 42px;
+    border-radius: 15px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-weight: 900;
+    letter-spacing: -.04em;
+    background:
+      linear-gradient(135deg, #ef4444, #991b1b),
+      #ef4444;
+    box-shadow: 0 14px 30px rgba(239, 68, 68, .30);
+  }
+
+  .brand strong { display: block; color: #fff; font-size: 15px; }
+  .brand span { display: block; color: #94a3b8; font-size: 12px; margin-top: 2px; }
+
+  .nav-block { display: grid; gap: 6px; }
+  .nav-label {
+    padding: 8px 10px 4px;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 42px;
+    padding: 9px 10px;
+    border-radius: 13px;
+    color: #cbd5e1;
+    text-align: left;
+    transition: .18s ease;
+  }
+  .nav-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+  .nav-item.active {
+    background: linear-gradient(135deg, rgba(239,68,68,.22), rgba(37,99,235,.14));
+    color: #fff;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.10);
+  }
+  .nav-ico {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    color: currentColor;
+    background: rgba(255,255,255,.06);
+  }
+  .nav-item.active .nav-ico { background: rgba(255,255,255,.12); }
+  .nav-count {
+    margin-left: auto;
+    color: #e2e8f0;
+    background: rgba(255,255,255,.10);
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .state-stack {
+    display: grid;
+    gap: 8px;
+    padding: 0 2px;
+  }
+  .state-card {
+    width: 100%;
+    text-align: left;
+    border-radius: 15px;
+    padding: 11px 12px;
+    background: rgba(255,255,255,.045);
+    color: #cbd5e1;
+    border: 1px solid rgba(255,255,255,.07);
+    display: grid;
+    gap: 7px;
+    transition: .18s ease;
+  }
+  .state-card:hover { background: rgba(255,255,255,.075); }
+  .state-card.active {
+    background: #fff;
+    color: var(--ink);
+    border-color: #fff;
+    box-shadow: var(--shadow);
+  }
+  .state-top { display: flex; align-items: center; gap: 8px; }
+  .state-dot { width: 9px; height: 9px; border-radius: 99px; background: var(--state-color); box-shadow: 0 0 0 4px color-mix(in srgb, var(--state-color) 16%, transparent); }
+  .state-name { font-weight: 900; font-size: 13px; }
+  .state-count { margin-left: auto; font-weight: 900; font-size: 13px; }
+  .state-meta { color: inherit; opacity: .65; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .sidebar-foot {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 8px 0;
+    border-top: 1px solid rgba(255,255,255,.08);
+  }
+
+  .avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    flex: none;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #2563eb, #0f172a);
+  }
+
+  .main {
+    min-width: 0;
+    display: grid;
+    grid-template-rows: auto auto auto minmax(0, 1fr);
+  }
+
+  .topbar {
+    padding: 18px 24px 12px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .title-wrap { min-width: 0; }
+  .eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+  .live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 99px;
+    background: var(--green);
+    box-shadow: 0 0 0 5px rgba(5, 150, 105, .12);
+  }
+  h1 { margin: 6px 0 0; font-size: clamp(26px, 2.5vw, 38px); letter-spacing: -.05em; line-height: 1; }
+  .top-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+  .search {
+    width: min(520px, 36vw);
+    position: relative;
+  }
+  .search input {
+    width: 100%;
+    height: 44px;
+    border: 1px solid rgba(15,23,42,.10);
+    background: rgba(255,255,255,.78);
+    border-radius: 16px;
+    padding: 0 48px 0 42px;
+    color: var(--ink);
+    box-shadow: var(--shadow-sm);
+  }
+  .search svg { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+  .kbd { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--faint); font-size: 11px; border: 1px solid var(--line); border-radius: 7px; padding: 2px 6px; background: #fff; }
+
+  .btn {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 13px;
+    padding: 9px 13px;
+    font-weight: 900;
+    font-size: 13px;
+    transition: .18s ease;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .btn svg { width: 16px; height: 16px; }
+  .btn-primary { color: #fff; background: linear-gradient(135deg, var(--brand), var(--brand-dark)); box-shadow: 0 14px 28px rgba(229, 57, 53, .24); }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 18px 34px rgba(229, 57, 53, .30); }
+  .btn-soft { color: var(--ink); background: rgba(255,255,255,.74); border-color: rgba(15,23,42,.09); box-shadow: var(--shadow-sm); }
+  .btn-soft:hover { background: #fff; transform: translateY(-1px); }
+  .btn-ghost { color: var(--muted); }
+  .btn-ghost:hover { color: var(--ink); background: rgba(255,255,255,.72); }
+  .btn-danger { color: var(--red); background: var(--red-bg); }
+
+  .region-bar {
+    padding: 0 24px 14px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: center;
+  }
+  .chips {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .chip {
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border-radius: 999px;
+    padding: 7px 12px;
+    color: var(--ink-2);
+    background: rgba(255,255,255,.65);
+    border: 1px solid rgba(15,23,42,.09);
+    font-size: 12px;
+    font-weight: 900;
+    box-shadow: var(--shadow-sm);
+  }
+  .chip:hover { background: #fff; transform: translateY(-1px); }
+  .chip.active { color: #fff; background: var(--chip-color, var(--ink)); border-color: transparent; }
+  .chip .mini { opacity: .72; font-weight: 800; }
+  .ops-note {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .metrics {
+    padding: 0 24px 16px;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .metric {
+    position: relative;
+    overflow: hidden;
+    min-height: 112px;
+    background: rgba(255,255,255,.78);
+    border: 1px solid rgba(15,23,42,.08);
+    border-radius: 20px;
+    padding: 15px 16px;
+    box-shadow: var(--shadow-sm);
+  }
+  .metric::after {
+    content: "";
+    position: absolute;
+    inset: auto -30px -45px auto;
+    width: 110px;
+    height: 110px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--metric-color, var(--blue)) 12%, transparent);
+  }
+  .metric-label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; font-weight: 900; }
+  .metric-value { margin-top: 10px; font-size: 31px; line-height: 1; letter-spacing: -.05em; font-weight: 900; }
+  .metric-foot { margin-top: 10px; color: var(--muted); font-size: 12px; font-weight: 700; }
+  .metric strong { color: var(--metric-color, var(--blue)); }
+
+  .workbench {
+    min-height: 0;
+    padding: 0 24px 24px;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .segmented {
+    display: inline-flex;
+    background: rgba(255,255,255,.72);
+    border: 1px solid rgba(15,23,42,.09);
+    border-radius: 16px;
+    padding: 4px;
+    gap: 4px;
+    box-shadow: var(--shadow-sm);
+  }
+  .segmented button {
+    min-height: 34px;
+    border-radius: 12px;
+    padding: 7px 12px;
+    color: var(--muted);
+    font-weight: 900;
+    font-size: 12px;
+  }
+  .segmented button.active { background: var(--ink); color: #fff; box-shadow: var(--shadow-sm); }
+  .toolbar-spacer { flex: 1; }
+
+  .board-shell, .table-shell {
+    min-height: 0;
+    background: rgba(255,255,255,.52);
+    border: 1px solid rgba(15,23,42,.08);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .board-shell {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .board-top {
+    min-height: 54px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 14px;
+    border-bottom: 1px solid rgba(15,23,42,.08);
+    background: rgba(255,255,255,.58);
+  }
+  .board-title { font-weight: 900; letter-spacing: -.02em; }
+  .board-subtitle { color: var(--muted); font-size: 12px; font-weight: 800; }
+
+  .board {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    gap: 12px;
+    overflow: auto;
+    padding: 14px;
+    scroll-snap-type: x proximity;
+  }
+  .column {
+    width: 316px;
+    min-width: 316px;
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+    border-radius: 18px;
+    background: rgba(246,248,251,.94);
+    border: 1px solid rgba(15,23,42,.08);
+    scroll-snap-align: start;
+  }
+  .column.drop-target {
+    border-color: color-mix(in srgb, var(--col-color, var(--blue)) 65%, #fff);
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--col-color, var(--blue)) 25%, transparent);
+  }
+  .column-head {
+    padding: 12px 12px 10px;
+    display: grid;
+    gap: 8px;
+    border-bottom: 1px solid rgba(15,23,42,.08);
+  }
+  .column-title-row { display: flex; align-items: center; gap: 8px; }
+  .col-dot { width: 9px; height: 9px; border-radius: 99px; background: var(--col-color, var(--blue)); box-shadow: 0 0 0 5px color-mix(in srgb, var(--col-color, var(--blue)) 13%, transparent); }
+  .column-title { font-weight: 900; letter-spacing: -.02em; }
+  .column-count { margin-left: auto; color: var(--muted); font-size: 12px; font-weight: 900; background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; }
+  .column-help { color: var(--muted); font-size: 11px; line-height: 1.35; font-weight: 700; }
+  .cards {
+    min-height: 100px;
+    overflow-y: auto;
+    padding: 10px;
+    display: grid;
+    gap: 10px;
+  }
+  .empty-column {
+    padding: 18px 12px;
+    border: 1px dashed var(--line-2);
+    border-radius: 14px;
+    color: var(--faint);
+    font-weight: 800;
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .job-card {
+    position: relative;
+    background: #fff;
+    border: 1px solid rgba(15,23,42,.09);
+    border-left: 5px solid var(--state-color, var(--blue));
+    border-radius: 17px;
+    padding: 12px 12px 11px;
+    box-shadow: 0 4px 12px rgba(15,23,42,.05);
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  }
+  .job-card:hover { transform: translateY(-2px); box-shadow: 0 16px 32px rgba(15,23,42,.12); border-color: rgba(15,23,42,.18); }
+  .job-card.dragging { opacity: .45; transform: rotate(1deg) scale(.98); }
+  .card-top { display: flex; align-items: flex-start; gap: 10px; }
+  .card-main { min-width: 0; flex: 1; }
+  .card-id { color: var(--muted); font-family: "JetBrains Mono", monospace; font-size: 11px; font-weight: 700; }
+  .card-title { margin-top: 3px; color: var(--ink); font-size: 14px; font-weight: 900; line-height: 1.25; letter-spacing: -.02em; }
+  .card-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: 999px;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 900;
+    color: var(--badge-color, var(--slate));
+    background: var(--badge-bg, var(--slate-bg));
+  }
+  .badge-dot { width: 6px; height: 6px; border-radius: 99px; background: currentColor; }
+  .card-line {
+    margin-top: 10px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+    min-width: 0;
+  }
+  .card-line span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card-footer {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .mini-avatar { width: 25px; height: 25px; border-radius: 999px; display: grid; place-items: center; color: #fff; font-weight: 900; font-size: 10px; background: #334155; }
+  .owner { min-width: 0; color: var(--ink-2); font-size: 12px; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card-time { margin-left: auto; color: var(--faint); font-size: 11px; font-weight: 800; }
+  .card-actions { display: flex; gap: 6px; margin-top: 10px; }
+  .mini-btn {
+    flex: 1;
+    min-height: 31px;
+    border-radius: 10px;
+    background: var(--surface-2);
+    color: var(--ink-2);
+    font-size: 11px;
+    font-weight: 900;
+  }
+  .mini-btn:hover { background: var(--ink); color: #fff; }
+
+  .table-shell { display: none; }
+  .table-scroll { overflow: auto; height: 100%; }
+  table { width: 100%; border-collapse: collapse; background: rgba(255,255,255,.78); }
+  th, td { text-align: left; padding: 13px 14px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; font-weight: 900; background: rgba(246,248,251,.94); position: sticky; top: 0; z-index: 1; }
+  tr { cursor: pointer; }
+  tr:hover td { background: #fff; }
+
+  .inspector-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, .22);
+    backdrop-filter: blur(3px);
+    opacity: 0;
+    pointer-events: none;
+    transition: .22s ease;
+    z-index: 30;
+  }
+  .inspector-overlay.open { opacity: 1; pointer-events: auto; }
+
+  .inspector {
+    position: fixed;
+    inset: 0 0 0 auto;
+    width: min(620px, calc(100vw - 28px));
+    background: #fff;
+    border-left: 1px solid var(--line);
+    box-shadow: var(--shadow-lg);
+    transform: translateX(104%);
+    transition: transform .30s cubic-bezier(.22, 1, .36, 1);
+    display: grid;
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    z-index: 40;
+  }
+  .inspector.open { transform: translateX(0); }
+  .drawer-head {
+    padding: 22px 22px 18px;
+    color: #fff;
+    background:
+      radial-gradient(circle at 85% 10%, rgba(255,255,255,.18), transparent 28%),
+      linear-gradient(135deg, #111827, #0b1220 62%, #7f1d1d);
+  }
+  .drawer-top { display: flex; gap: 13px; align-items: flex-start; }
+  .drawer-title { min-width: 0; flex: 1; }
+  .drawer-id { color: rgba(255,255,255,.62); font-family: "JetBrains Mono", monospace; font-size: 12px; font-weight: 700; }
+  .drawer-title h2 { margin: 5px 0 7px; font-size: 25px; line-height: 1.08; letter-spacing: -.04em; }
+  .drawer-meta { display: flex; flex-wrap: wrap; gap: 8px; color: rgba(255,255,255,.72); font-size: 12px; font-weight: 800; }
+  .close-btn { width: 40px; height: 40px; border-radius: 14px; display: grid; place-items: center; color: rgba(255,255,255,.80); background: rgba(255,255,255,.10); }
+  .close-btn:hover { background: rgba(255,255,255,.18); color: #fff; }
+
+  .drawer-status {
+    padding: 13px 18px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface-2);
+  }
+  .status-select {
+    min-height: 38px;
+    border-radius: 12px;
+    border: 1px solid var(--line-2);
+    padding: 0 10px;
+    font-weight: 900;
+    color: var(--ink);
+    background: #fff;
+  }
+  .next-box {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 900;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 3px;
+    overflow-x: auto;
+    padding: 8px 12px 0;
+    background: #fff;
+    border-bottom: 1px solid var(--line);
+  }
+  .tab {
+    min-height: 40px;
+    padding: 9px 12px;
+    border-radius: 12px 12px 0 0;
+    color: var(--muted);
+    font-weight: 900;
+    font-size: 12px;
+  }
+  .tab.active { background: var(--surface-2); color: var(--ink); }
+  .drawer-body { min-height: 0; overflow: auto; padding: 18px; background: #fff; }
+  .panel-grid { display: grid; gap: 14px; }
+  .callout {
+    padding: 15px;
+    border-radius: 17px;
+    background: linear-gradient(135deg, #fff7ed, #fff);
+    border: 1px solid #fed7aa;
+  }
+  .callout-label { color: var(--amber); font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
+  .callout-text { margin-top: 7px; font-weight: 900; line-height: 1.45; color: var(--ink); }
+  .group {
+    border: 1px solid var(--line);
+    border-radius: 17px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .group h3 {
+    margin: 0;
+    padding: 13px 14px;
+    font-size: 13px;
+    letter-spacing: -.01em;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--line);
+  }
+  .field {
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr);
+    gap: 12px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .field:last-child { border-bottom: 0; }
+  .field .k { color: var(--muted); font-size: 12px; font-weight: 900; }
+  .field .v { min-width: 0; color: var(--ink); font-size: 13px; font-weight: 800; overflow-wrap: anywhere; }
+  .field .empty { color: var(--red); }
+  .timeline { position: relative; display: grid; gap: 12px; padding: 4px 0; }
+  .event {
+    position: relative;
+    padding: 12px 14px 12px 38px;
+    border: 1px solid var(--line);
+    border-radius: 15px;
+    background: #fff;
+  }
+  .event::before {
+    content: "";
+    position: absolute;
+    left: 14px;
+    top: 16px;
+    width: 10px;
+    height: 10px;
+    border-radius: 99px;
+    background: var(--green);
+    box-shadow: 0 0 0 5px rgba(5,150,105,.12);
+  }
+  .event.current::before { background: var(--brand); box-shadow: 0 0 0 5px rgba(229,57,53,.13); }
+  .event-title { font-weight: 900; }
+  .event-meta { margin-top: 3px; color: var(--muted); font-size: 12px; font-weight: 700; }
+  .transcript {
+    max-height: 300px;
+    overflow: auto;
+    white-space: pre-wrap;
+    padding: 14px;
+    border-radius: 15px;
+    background: #0b1220;
+    color: #dbeafe;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    line-height: 1.65;
+  }
+  .drawer-actions {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    padding: 14px;
+    border-top: 1px solid var(--line);
+    background: var(--surface-2);
+  }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translate(-50%, 18px);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 60;
+    background: #0b1220;
+    color: #fff;
+    border-radius: 999px;
+    padding: 12px 16px;
+    box-shadow: var(--shadow-lg);
+    font-weight: 900;
+    transition: .22s ease;
+  }
+  .toast.open { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (max-width: 1180px) {
+    .app { grid-template-columns: 84px minmax(0, 1fr); }
+    .brand div:not(.brand-mark), .nav-item span:not(.nav-count), .nav-label, .state-card, .sidebar-foot div:not(.avatar) { display: none; }
+    .nav-item { justify-content: center; }
+    .nav-count { position: absolute; transform: translate(18px, -12px); }
+    .sidebar { padding-inline: 12px; }
+    .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .search { width: min(420px, 42vw); }
+  }
+  @media (max-width: 820px) {
+    body { overflow: auto; }
+    .app { min-height: 100vh; grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .main { min-height: 100vh; }
+    .topbar, .region-bar, .metrics, .workbench { padding-inline: 14px; }
+    .topbar { align-items: flex-start; flex-direction: column; }
+    .top-actions { margin-left: 0; width: 100%; flex-wrap: wrap; }
+    .search { width: 100%; }
+    .region-bar { grid-template-columns: 1fr; }
+    .metrics { grid-template-columns: 1fr; }
+    .board-shell { min-height: 70vh; }
+    .drawer-actions { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" aria-label="Baro CRM navigation">
+    <div class="brand">
+      <div class="brand-mark">BS</div>
+      <div>
+        <strong>Baro Service</strong>
+        <span>Repair operations CRM</span>
+      </div>
+    </div>
+
+    <div class="nav-block">
+      <div class="nav-label">Workspace</div>
+      <button class="nav-item active"><span class="nav-ico" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg></span><span>Command Center</span><span class="nav-count" id="navCountAll">0</span></button>
+      <button class="nav-item"><span class="nav-ico" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.4 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg></span><span>Calls</span><span class="nav-count" id="navCountCalls">0</span></button>
+      <button class="nav-item"><span class="nav-ico" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4l-6 6 2 2 6-6a4 4 0 0 0 5.4-5.4l-2.3 2.3-2-2 2.3-2.3z"/><path d="m17 14 4 4-3 3-4-4"/></svg></span><span>Repairs</span></button>
+      <button class="nav-item"><span class="nav-ico" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5V4a2 2 0 0 1 2-2h12v20H6a2 2 0 0 1-2-2.5z"/><path d="M8 7h6"/><path d="M8 11h8"/></svg></span><span>Customer Chart</span></button>
+    </div>
+
+    <div class="nav-block">
+      <div class="nav-label">States</div>
+      <div class="state-stack" id="sidebarStates"></div>
+    </div>
+
+    <div class="sidebar-foot">
+      <div class="avatar">AY</div>
+      <div>
+        <strong style="display:block;color:#fff;font-size:13px;">Ali Yermek</strong>
+        <span style="display:block;color:#64748b;font-size:12px;">Operations Builder</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="title-wrap">
+        <div class="eyebrow"><span class="live-dot"></span><span>Live dispatch board</span><span id="clockLabel">05-19 00:00</span></div>
+        <h1>Repair Operations</h1>
+      </div>
+      <div class="top-actions">
+        <div class="search" role="search">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <label for="globalSearch" class="sr-only">Search jobs</label>
+          <input id="globalSearch" type="search" placeholder="Search customer, phone, address, equipment..." autocomplete="off" />
+          <span class="kbd">Ctrl K</span>
+        </div>
+        <button class="btn btn-soft" id="btnRefresh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>Refresh</button>
+        <button class="btn btn-primary" id="btnNewJob"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"/><path d="M5 12h14"/></svg>New Repair Job</button>
+      </div>
+    </header>
+
+    <section class="region-bar" aria-label="State and city filters">
+      <div>
+        <div class="chips" id="stateChips"></div>
+        <div class="chips" id="cityChips" style="margin-top:9px;"></div>
+      </div>
+      <div class="ops-note" id="opsNote">Showing all active states</div>
+    </section>
+
+    <section class="metrics" aria-label="Operational metrics">
+      <div class="metric" style="--metric-color:var(--blue)"><div class="metric-label">Open jobs</div><div class="metric-value" id="mOpen">0</div><div class="metric-foot"><strong id="mNew">0</strong> new intake</div></div>
+      <div class="metric" style="--metric-color:var(--green)"><div class="metric-label">Ready to dispatch</div><div class="metric-value" id="mReady">0</div><div class="metric-foot">Paid diagnostics or assigned</div></div>
+      <div class="metric" style="--metric-color:var(--amber)"><div class="metric-label">Needs attention</div><div class="metric-value" id="mAttention">0</div><div class="metric-foot">Follow-up, prepay, approval</div></div>
+      <div class="metric" style="--metric-color:var(--purple)"><div class="metric-label">Pipeline value</div><div class="metric-value" id="mValue">$0</div><div class="metric-foot">Estimate + diagnostics</div></div>
+      <div class="metric" style="--metric-color:var(--red)"><div class="metric-label">Data risks</div><div class="metric-value" id="mRisks">0</div><div class="metric-foot">Missing email, address, owner</div></div>
+    </section>
+
+    <section class="workbench">
+      <div class="toolbar">
+        <div class="segmented" id="viewTabs" aria-label="View selector">
+          <button data-view="board" class="active">Kanban</button>
+          <button data-view="list">List</button>
+        </div>
+        <div class="segmented" id="roleTabs" aria-label="Role board selector">
+          <button data-role="all" class="active">All Ops</button>
+          <button data-role="dispatch">Dispatch</button>
+          <button data-role="production">Production</button>
+          <button data-role="money">Money</button>
+        </div>
+        <div class="toolbar-spacer"></div>
+        <button class="chip" id="btnOnlyUrgent" style="--chip-color:var(--red)">Urgent only <span class="mini" id="urgentCount">0</span></button>
+        <button class="chip" id="btnOnlyUnassigned" style="--chip-color:var(--slate)">Unassigned <span class="mini" id="unassignedCount">0</span></button>
+      </div>
+
+      <section class="board-shell" id="boardShell">
+        <div class="board-top">
+          <div>
+            <div class="board-title" id="boardTitle">All Operations Pipeline</div>
+            <div class="board-subtitle" id="boardSubtitle">Drag cards between columns or use the right panel for controlled status changes.</div>
+          </div>
+          <div class="toolbar-spacer"></div>
+          <button class="btn btn-soft" id="btnDemoCall">Add demo call</button>
+        </div>
+        <div class="board" id="board"></div>
+      </section>
+
+      <section class="table-shell" id="tableShell">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Repair Job</th>
+                <th>Status</th>
+                <th>State / City</th>
+                <th>Equipment</th>
+                <th>Owner</th>
+                <th>Money</th>
+                <th>Updated</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  </main>
+</div>
+
+<div class="inspector-overlay" id="drawerOverlay" aria-hidden="true"></div>
+<aside class="inspector" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" aria-hidden="true">
+  <div class="drawer-head">
+    <div class="drawer-top">
+      <div class="avatar" id="drawerAvatar" style="width:50px;height:50px;font-size:15px;">BS</div>
+      <div class="drawer-title">
+        <div class="drawer-id" id="drawerId">RJ-0000</div>
+        <h2 id="drawerTitle">Repair Job</h2>
+        <div class="drawer-meta">
+          <span id="drawerPhone">--</span>
+          <span id="drawerPlace">--</span>
+          <span id="drawerSource">--</span>
+        </div>
+      </div>
+      <button class="close-btn" id="drawerClose" aria-label="Close right panel"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+    </div>
+  </div>
+
+  <div class="drawer-status">
+    <span class="badge" id="drawerBadge"><span class="badge-dot"></span><span>New</span></span>
+    <label class="sr-only" for="statusSelect">Change status</label>
+    <select class="status-select" id="statusSelect"></select>
+    <div class="next-box"><span id="nextActionText">No next action</span><button class="btn btn-soft" id="btnAdvance">Advance</button></div>
+  </div>
+
+  <nav class="tabs" id="drawerTabs" aria-label="Repair Job sections">
+    <button class="tab active" data-tab="overview">Overview</button>
+    <button class="tab" data-tab="call">Call</button>
+    <button class="tab" data-tab="money">Money</button>
+    <button class="tab" data-tab="team">Team</button>
+    <button class="tab" data-tab="timeline">Timeline</button>
+  </nav>
+
+  <div class="drawer-body" id="drawerBody"></div>
+
+  <div class="drawer-actions">
+    <button class="btn btn-soft" data-action="call">Call</button>
+    <button class="btn btn-soft" data-action="sms">SMS</button>
+    <button class="btn btn-soft" data-action="recording">Recording</button>
+    <button class="btn btn-primary" data-action="todo">Create ToDo</button>
+  </div>
+</aside>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const STATES = [
+  { key: "all", label: "All States", short: "ALL", color: "#0b1220", cities: [] },
+  { key: "FL", label: "Florida", short: "FL", color: "#0ea5e9", cities: ["Tampa", "Orlando", "Sarasota", "Miami", "St. Petersburg"] },
+  { key: "NY", label: "New York", short: "NY", color: "#2563eb", cities: ["New York City", "Brooklyn", "Queens"] },
+  { key: "NJ", label: "New Jersey", short: "NJ", color: "#7c3aed", cities: ["Jersey City", "Newark", "New Brunswick"] },
+  { key: "TX", label: "Texas", short: "TX", color: "#dc2626", cities: ["Houston", "Dallas", "Austin"] }
+];
+
+const STATUSES = [
+  { key: "New", label: "New", color: "var(--blue)", tone: ["var(--blue)", "var(--blue-bg)"], role: "dispatch", help: "Fresh call, needs triage and ownership." },
+  { key: "Need Follow-up", label: "Need Follow-up", color: "var(--amber)", tone: ["var(--amber)", "var(--amber-bg)"], role: "dispatch", help: "Client needs callback, missing details, or dropped call." },
+  { key: "Waiting Prepayment", label: "Waiting Prepayment", color: "var(--amber)", tone: ["var(--amber)", "var(--amber-bg)"], role: "dispatch", help: "Diagnostics sold or discussed, payment not confirmed." },
+  { key: "Diagnostics Paid", label: "Ready to Dispatch", color: "var(--green)", tone: ["var(--green)", "var(--green-bg)"], role: "dispatch", help: "Diagnostic fee paid. Production can assign a technician." },
+  { key: "Technician Assigned", label: "Technician Assigned", color: "var(--purple)", tone: ["var(--purple)", "var(--purple-bg)"], role: "production", help: "Technician owns the job. Confirm ETA and route." },
+  { key: "Diagnostics In Progress", label: "In Diagnostics", color: "var(--purple)", tone: ["var(--purple)", "var(--purple-bg)"], role: "production", help: "Technician is diagnosing equipment or preparing report." },
+  { key: "Estimate Sent", label: "Estimate / Approval", color: "var(--cyan)", tone: ["var(--cyan)", "var(--cyan-bg)"], role: "money", help: "Estimate sent. Client approval or manager review is needed." },
+  { key: "Parts Needed", label: "Parts Needed", color: "var(--amber)", tone: ["var(--amber)", "var(--amber-bg)"], role: "production", help: "Supply chain owns parts lookup, quote, order, and ETA." },
+  { key: "Repair In Progress", label: "Repair In Progress", color: "var(--purple)", tone: ["var(--purple)", "var(--purple-bg)"], role: "production", help: "Approved repair is in progress." },
+  { key: "Repair Completed", label: "Repair Completed", color: "var(--green)", tone: ["var(--green)", "var(--green-bg)"], role: "money", help: "Work finished. Invoice and payment must be closed." },
+  { key: "Paid", label: "Paid / Warranty", color: "var(--green)", tone: ["var(--green)", "var(--green-bg)"], role: "money", help: "Paid job. Warranty window and customer care follow-up." },
+  { key: "Lost", label: "Lost / Out", color: "var(--slate)", tone: ["var(--slate)", "var(--slate-bg)"], role: "money", help: "Lost, spam, unrelated, or no service intent." }
+];
+
+const NEXT = {
+  "New": "Need Follow-up",
+  "Need Follow-up": "Waiting Prepayment",
+  "Waiting Prepayment": "Diagnostics Paid",
+  "Diagnostics Paid": "Technician Assigned",
+  "Technician Assigned": "Diagnostics In Progress",
+  "Diagnostics In Progress": "Estimate Sent",
+  "Estimate Sent": "Repair In Progress",
+  "Parts Needed": "Repair In Progress",
+  "Repair In Progress": "Repair Completed",
+  "Repair Completed": "Paid"
+};
+
+const STAFF = {
+  mona: { name: "Mona", role: "Dispatcher", color: "#2563eb" },
+  vanessa: { name: "Vanessa", role: "Dispatcher", color: "#7c3aed" },
+  mohamed: { name: "Mohamed", role: "Production", color: "#0f766e" },
+  dima: { name: "Dima", role: "Estimate", color: "#b45309" },
+  techRay: { name: "Ray", role: "Technician", color: "#dc2626" },
+  techOmar: { name: "Omar", role: "Technician", color: "#2563eb" },
+  techLuis: { name: "Luis", role: "Technician", color: "#059669" }
+};
+
+let jobs = [
+  job("RJ-2026-1012", "Marriott Residence Inn", "NY", "New York City", "New", "Coffee machine", "not brewing correctly", "+1 212 380 5011", "1033 6th Avenue, New York, NY 10018", "", "BaroSite NY", "Google/SMS", "high", null, 259, 0, "Diagnostics requested. Mike will confirm cash/card and call back in five minutes.", "2026-05-18 10:12", 137),
+  job("RJ-2026-1013", "Gulf Coast Grill", "FL", "Tampa", "Diagnostics Paid", "Commercial fryer", "not heating; oil temperature drops during rush", "+1 813 564 8399", "410 N Tampa St, Tampa, FL", "manager@gulfgrill.com", "Tampa-Miami", "Google Ads", "high", STAFF.mona, 199, 0, "Diagnostic paid. Needs technician today before dinner service.", "2026-05-19 08:45", 244, STAFF.techLuis),
+  job("RJ-2026-1014", "Harbor Sushi", "FL", "Sarasota", "Technician Assigned", "Ice machine", "making thin ice and leaking", "+1 941 879 5827", "1888 Main St, Sarasota, FL", "ops@harborsushi.com", "Sarasota website", "Website", "med", STAFF.vanessa, 199, 0, "Ray assigned. Client asked for ETA text before arrival.", "2026-05-19 09:05", 267, STAFF.techRay),
+  job("RJ-2026-1015", "NJ Deli Market", "NJ", "Newark", "Need Follow-up", "Oven", "pilot light goes out", "+1 551 247 1317", "", "", "NJGoogleReklama2", "Google Ads", "high", null, 199, 0, "Caller gave equipment but not address. Follow up required before dispatch.", "2026-05-19 09:18", 58),
+  job("RJ-2026-1016", "Houston BBQ House", "TX", "Houston", "Repair In Progress", "Walk-in freezer", "evaporator fan motor failed", "+1 713 597 6912", "2401 Richmond Ave, Houston, TX", "service@houstonbbq.com", "HoustonGoogleAds2", "Google Ads", "high", STAFF.mohamed, 159, 620, "Parts approved. Omar is on site replacing fan motor.", "2026-05-19 09:42", 231, STAFF.techOmar),
+  job("RJ-2026-1017", "Austin Cantina", "TX", "Austin", "Estimate Sent", "Kitchen hood", "motor noise and weak pull", "+1 512 640 2400", "77 Rainey St, Austin, TX", "gm@austincantina.com", "Texas SEO", "Organic", "med", STAFF.dima, 159, 740, "Estimate sent. Waiting for owner approval before ordering motor.", "2026-05-19 10:08", 312),
+  job("RJ-2026-1018", "Brooklyn Coffee Lab", "NY", "Brooklyn", "Waiting Prepayment", "Espresso machine", "steam wand weak, needs cleaning", "+1 347 439 1347", "88 Wythe Ave, Brooklyn, NY", "", "BaroSite NY", "Website", "med", STAFF.mona, 199, 0, "Diagnostic price accepted. Card collection pending.", "2026-05-19 10:16", 194),
+  job("RJ-2026-1019", "Orlando Pizza Works", "FL", "Orlando", "Parts Needed", "Pizza oven", "igniter replacement needed", "+1 407 444 9010", "944 W Colonial Dr, Orlando, FL", "owner@opw.com", "FL-Orlando SMS", "SMS", "med", STAFF.mohamed, 199, 480, "Supply needs igniter ETA and final approval.", "2026-05-19 10:31", 206, STAFF.techLuis),
+  job("RJ-2026-1020", "Miami Hotel Kitchen", "FL", "Miami", "Repair Completed", "Dishwasher", "pump replaced and tested", "+1 786 746 9043", "500 Biscayne Blvd, Miami, FL", "facilities@miamihotel.com", "Miami site", "Website", "low", STAFF.vanessa, 199, 390, "Repair complete. Invoice needs to be sent today.", "2026-05-19 10:53", 67, STAFF.techRay),
+  job("RJ-2026-1021", "Jersey City Cafe", "NJ", "Jersey City", "Paid", "Coffee machine", "deep cleaning and gasket replacement", "+1 201 555 7744", "424 Arlington Ave, Jersey City, NJ", "hello@jccafe.com", "BaroSite NJ", "Website", "low", STAFF.dima, 199, 359, "Paid. Warranty active for 30 days. Customer care follow-up in 5 days.", "2026-05-19 11:15", 158, STAFF.techOmar),
+  job("RJ-2026-1022", "Dallas Steakhouse", "TX", "Dallas", "Lost", "Grill", "asked for part only", "+1 214 555 0199", "", "", "Dallas PPC", "Google Ads", "low", null, 0, 0, "Not a repair lead. Caller wanted to buy parts only.", "2026-05-19 11:32", 31),
+  job("RJ-2026-1023", "St. Pete Bakery", "FL", "St. Petersburg", "Diagnostics In Progress", "Commercial mixer", "grinding noise under load", "+1 727 776 0653", "120 Central Ave, St. Petersburg, FL", "baker@stpetebakery.com", "yard signs Tampa", "Yard Sign", "high", STAFF.mohamed, 159, 0, "Technician testing gearbox and belt. Customer needs same-day answer.", "2026-05-19 11:47", 101, STAFF.techLuis)
+];
+
+let state = {
+  selectedState: "all",
+  selectedCity: "all",
+  selectedRole: "all",
+  view: "board",
+  search: "",
+  selectedJob: null,
+  activeTab: "overview",
+  urgentOnly: false,
+  unassignedOnly: false,
+  dragId: null
+};
+
+function job(id, customer, stateKey, city, status, equipment, symptom, phone, address, email, sourceTag, source, urgency, owner, diagnostic, estimate, summary, updated, duration, technician) {
+  return {
+    id, customer, stateKey, city, status, equipment, symptom, phone, address, email, sourceTag, source, urgency,
+    owner, diagnostic, estimate, summary, updated, duration, technician: technician || null,
+    updatedAgo: updated.includes("11:") ? "minutes ago" : "today",
+    callTranscript: sampleTranscript(customer, equipment, symptom),
+    history: [
+      { title: "Call received", meta: updated + " via Zadarma", current: false },
+      { title: "AI summary created", meta: "Transcript, quality, purpose, and service extracted", current: false },
+      { title: status, meta: "Current workflow status", current: true }
+    ]
+  };
+}
+
+function sampleTranscript(customer, equipment, symptom) {
+  return "Agent: Baro Service, how can I help?\\nClient: We need someone to check our " + equipment.toLowerCase() + ".\\nAgent: What is happening with it?\\nClient: It is " + symptom + ".\\nAgent: We can schedule diagnostics and send a technician as soon as possible.\\nClient: Please send the details and confirm the ETA.";
+}
+
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+const statusByKey = (key) => STATUSES.find(s => s.key === key) || STATUSES[0];
+const stateByKey = (key) => STATES.find(s => s.key === key) || STATES[0];
+const initials = (name) => name.replace(/^DEMO\\s*-\\s*/i, "").split(/\\s+/).filter(Boolean).slice(0, 2).map(p => p[0]).join("").toUpperCase();
+const money = (n) => "$" + Number(n || 0).toLocaleString();
+const activeStatuses = new Set(STATUSES.filter(s => !["Paid", "Lost"].includes(s.key)).map(s => s.key));
+
+function filteredJobs() {
+  const q = state.search.trim().toLowerCase();
+  return jobs.filter(j => {
+    if (state.selectedState !== "all" && j.stateKey !== state.selectedState) return false;
+    if (state.selectedCity !== "all" && j.city !== state.selectedCity) return false;
+    if (state.urgentOnly && j.urgency !== "high") return false;
+    if (state.unassignedOnly && (j.owner || j.technician)) return false;
+    if (!q) return true;
+    return [j.id, j.customer, j.phone, j.address, j.equipment, j.symptom, j.city, j.sourceTag].join(" ").toLowerCase().includes(q);
+  });
+}
+
+function boardColumns() {
+  if (state.selectedRole === "dispatch") return STATUSES.filter(s => ["New", "Need Follow-up", "Waiting Prepayment", "Diagnostics Paid"].includes(s.key));
+  if (state.selectedRole === "production") return STATUSES.filter(s => ["Diagnostics Paid", "Technician Assigned", "Diagnostics In Progress", "Parts Needed", "Repair In Progress", "Repair Completed"].includes(s.key));
+  if (state.selectedRole === "money") return STATUSES.filter(s => ["Estimate Sent", "Repair Completed", "Paid", "Lost"].includes(s.key));
+  return STATUSES;
+}
+
+function render() {
+  renderStateControls();
+  renderMetrics();
+  renderBoard();
+  renderTable();
+  renderLayout();
+  updateClock();
+}
+
+function renderStateControls() {
+  const counts = Object.fromEntries(STATES.map(s => [s.key, 0]));
+  jobs.forEach(j => { counts[j.stateKey] = (counts[j.stateKey] || 0) + 1; counts.all += 1; });
+
+  $("#sidebarStates").innerHTML = STATES.filter(s => s.key !== "all").map(s => {
+    const cities = s.cities.slice(0, 3).join(", ");
+    return `<button class="state-card ${state.selectedState === s.key ? "active" : ""}" data-state="${s.key}" style="--state-color:${s.color}">
+      <div class="state-top"><span class="state-dot"></span><span class="state-name">${s.label}</span><span class="state-count">${counts[s.key] || 0}</span></div>
+      <div class="state-meta">${cities}</div>
+    </button>`;
+  }).join("");
+
+  $("#stateChips").innerHTML = STATES.map(s => `<button class="chip ${state.selectedState === s.key ? "active" : ""}" data-state="${s.key}" style="--chip-color:${s.color}">${s.label} <span class="mini">${counts[s.key] || 0}</span></button>`).join("");
+
+  const selected = stateByKey(state.selectedState);
+  const cities = state.selectedState === "all"
+    ? [...new Set(jobs.map(j => j.city))].sort()
+    : selected.cities;
+  $("#cityChips").innerHTML = [`<button class="chip ${state.selectedCity === "all" ? "active" : ""}" data-city="all" style="--chip-color:#0b1220">All Cities</button>`]
+    .concat(cities.map(city => `<button class="chip ${state.selectedCity === city ? "active" : ""}" data-city="${city}" style="--chip-color:${selected.color || "#0b1220"}">${city}</button>`)).join("");
+
+  $("#navCountAll").textContent = jobs.length;
+  $("#navCountCalls").textContent = jobs.filter(j => ["New", "Need Follow-up"].includes(j.status)).length;
+  $("#opsNote").textContent = state.selectedState === "all" ? "Showing Florida, New York, New Jersey, and Texas" : `Showing ${selected.label}${state.selectedCity !== "all" ? " / " + state.selectedCity : ""}`;
+}
+
+function renderMetrics() {
+  const data = filteredJobs();
+  const open = data.filter(j => activeStatuses.has(j.status)).length;
+  const ready = data.filter(j => ["Diagnostics Paid", "Technician Assigned"].includes(j.status)).length;
+  const attention = data.filter(j => ["Need Follow-up", "Waiting Prepayment", "Estimate Sent", "Parts Needed"].includes(j.status)).length;
+  const value = data.reduce((sum, j) => sum + Number(j.diagnostic || 0) + Number(j.estimate || 0), 0);
+  const risks = data.filter(j => !j.address || !j.email || (!j.owner && !j.technician && j.status !== "Lost")).length;
+  $("#mOpen").textContent = open;
+  $("#mNew").textContent = data.filter(j => j.status === "New").length;
+  $("#mReady").textContent = ready;
+  $("#mAttention").textContent = attention;
+  $("#mValue").textContent = money(value);
+  $("#mRisks").textContent = risks;
+  $("#urgentCount").textContent = data.filter(j => j.urgency === "high").length;
+  $("#unassignedCount").textContent = data.filter(j => !j.owner && !j.technician).length;
+}
+
+function renderBoard() {
+  const data = filteredJobs();
+  const columns = boardColumns();
+  $("#boardTitle").textContent = ({
+    all: "All Operations Pipeline",
+    dispatch: "Dispatch Board",
+    production: "Production Board",
+    money: "Money and Warranty Board"
+  })[state.selectedRole];
+  $("#boardSubtitle").textContent = `${data.length} jobs visible. Drag cards between workflow columns or open a card for details.`;
+
+  $("#board").innerHTML = columns.map(col => {
+    const items = data.filter(j => j.status === col.key);
+    return `<section class="column" data-status="${col.key}" style="--col-color:${col.color}">
+      <div class="column-head">
+        <div class="column-title-row"><span class="col-dot"></span><span class="column-title">${col.label}</span><span class="column-count">${items.length}</span></div>
+        <div class="column-help">${col.help}</div>
+      </div>
+      <div class="cards">
+        ${items.length ? items.map(renderCard).join("") : `<div class="empty-column">No jobs here</div>`}
+      </div>
+    </section>`;
+  }).join("");
+}
+
+function renderCard(j) {
+  const st = statusByKey(j.status);
+  const region = stateByKey(j.stateKey);
+  const owner = j.technician || j.owner;
+  const risk = !j.address || !j.email || (!owner && j.status !== "Lost");
+  return `<article class="job-card" draggable="true" data-id="${j.id}" style="--state-color:${st.color}">
+    <div class="card-top">
+      <div class="avatar" style="width:38px;height:38px;background:${region.color};">${region.short}</div>
+      <div class="card-main">
+        <div class="card-id">${j.id}</div>
+        <div class="card-title">${j.customer}</div>
+      </div>
+    </div>
+    <div class="card-badges">
+      ${badge(j.status, st.tone[0], st.tone[1])}
+      ${badge(j.urgency === "high" ? "Urgent" : j.urgency === "med" ? "Normal" : "Low", j.urgency === "high" ? "var(--red)" : j.urgency === "med" ? "var(--amber)" : "var(--slate)", j.urgency === "high" ? "var(--red-bg)" : j.urgency === "med" ? "var(--amber-bg)" : "var(--slate-bg)")}
+      ${risk ? badge("Data risk", "var(--red)", "var(--red-bg)") : ""}
+    </div>
+    <div class="card-line"><span>${j.equipment}</span></div>
+    <div class="card-line"><span>${j.city}, ${j.stateKey}</span><span style="margin-left:auto">${money((j.diagnostic || 0) + (j.estimate || 0))}</span></div>
+    <div class="card-footer">
+      ${owner ? `<span class="mini-avatar" style="background:${owner.color}">${initials(owner.name)}</span><span class="owner">${owner.name}</span>` : `<span class="mini-avatar" style="background:#94a3b8">--</span><span class="owner" style="color:var(--faint)">No owner</span>`}
+      <span class="card-time">${j.updatedAgo}</span>
+    </div>
+    <div class="card-actions">
+      <button class="mini-btn" data-action="call" data-id="${j.id}">Call</button>
+      <button class="mini-btn" data-action="sms" data-id="${j.id}">SMS</button>
+      <button class="mini-btn" data-action="open" data-id="${j.id}">Open</button>
+    </div>
+  </article>`;
+}
+
+function badge(label, color, bg) {
+  return `<span class="badge" style="--badge-color:${color};--badge-bg:${bg}"><span class="badge-dot"></span>${label}</span>`;
+}
+
+function renderTable() {
+  const data = filteredJobs();
+  $("#tableBody").innerHTML = data.map(j => {
+    const st = statusByKey(j.status);
+    const owner = j.technician || j.owner;
+    return `<tr data-id="${j.id}">
+      <td><strong>${j.customer}</strong><br><span style="color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:12px">${j.id}</span></td>
+      <td>${badge(j.status, st.tone[0], st.tone[1])}</td>
+      <td>${j.stateKey} / ${j.city}</td>
+      <td>${j.equipment}<br><span style="color:var(--muted);font-size:12px">${j.symptom}</span></td>
+      <td>${owner ? owner.name : "<span style='color:var(--red);font-weight:900'>Unassigned</span>"}</td>
+      <td>${money((j.diagnostic || 0) + (j.estimate || 0))}</td>
+      <td>${j.updated}</td>
+    </tr>`;
+  }).join("");
+}
+
+function renderLayout() {
+  $("#boardShell").style.display = state.view === "board" ? "grid" : "none";
+  $("#tableShell").style.display = state.view === "list" ? "block" : "none";
+  $("#btnOnlyUrgent").classList.toggle("active", state.urgentOnly);
+  $("#btnOnlyUnassigned").classList.toggle("active", state.unassignedOnly);
+}
+
+function openDrawer(id) {
+  const j = jobs.find(x => x.id === id);
+  if (!j) return;
+  state.selectedJob = id;
+  const region = stateByKey(j.stateKey);
+  const st = statusByKey(j.status);
+  $("#drawerAvatar").textContent = region.short;
+  $("#drawerAvatar").style.background = region.color;
+  $("#drawerId").textContent = j.id;
+  $("#drawerTitle").textContent = j.customer;
+  $("#drawerPhone").textContent = j.phone;
+  $("#drawerPlace").textContent = `${j.city}, ${region.label}`;
+  $("#drawerSource").textContent = j.sourceTag;
+  $("#drawerBadge").outerHTML = `<span class="badge" id="drawerBadge" style="--badge-color:${st.tone[0]};--badge-bg:${st.tone[1]}"><span class="badge-dot"></span><span>${j.status}</span></span>`;
+  $("#statusSelect").innerHTML = STATUSES.map(s => `<option value="${s.key}" ${s.key === j.status ? "selected" : ""}>${s.label}</option>`).join("");
+  const next = NEXT[j.status];
+  $("#nextActionText").textContent = next ? `Next: ${statusByKey(next).label}` : "No next action";
+  $("#btnAdvance").disabled = !next;
+  renderDrawerBody(j);
+  $("#drawer").classList.add("open");
+  $("#drawer").setAttribute("aria-hidden", "false");
+  $("#drawerOverlay").classList.add("open");
+  $("#drawerOverlay").setAttribute("aria-hidden", "false");
+}
+
+function closeDrawer() {
+  state.selectedJob = null;
+  $("#drawer").classList.remove("open");
+  $("#drawer").setAttribute("aria-hidden", "true");
+  $("#drawerOverlay").classList.remove("open");
+  $("#drawerOverlay").setAttribute("aria-hidden", "true");
+}
+
+function renderDrawerBody(j) {
+  const owner = j.technician || j.owner;
+  const tab = state.activeTab;
+  let html = "";
+  if (tab === "overview") {
+    html = `<div class="panel-grid">
+      <div class="callout"><div class="callout-label">Next best action</div><div class="callout-text">${nextBestAction(j)}</div></div>
+      <div class="group"><h3>Customer chart</h3>
+        ${field("Business", j.customer)}
+        ${field("Phone", `<a href="tel:${j.phone}">${j.phone}</a>`)}
+        ${field("Email", j.email || "Not collected", !j.email)}
+        ${field("Address", j.address || "Not collected", !j.address)}
+        ${field("Area", `${j.city}, ${stateByKey(j.stateKey).label}`)}
+        ${field("Source", j.sourceTag + " / " + j.source)}
+      </div>
+      <div class="group"><h3>Service request</h3>
+        ${field("Equipment", j.equipment)}
+        ${field("Problem", j.symptom)}
+        ${field("Urgency", j.urgency === "high" ? "Emergency / same day" : j.urgency === "med" ? "Normal priority" : "Low priority")}
+        ${field("AI summary", j.summary)}
+      </div>
+    </div>`;
+  }
+  if (tab === "call") {
+    html = `<div class="panel-grid">
+      <div class="group"><h3>Zadarma call</h3>
+        ${field("Call time", j.updated)}
+        ${field("Duration", Math.floor(j.duration / 60) + "m " + (j.duration % 60) + "s")}
+        ${field("Recording", `<a href="#">Open recording link</a>`)}
+        ${field("Quality", j.duration < 60 ? "Short call. Verify intent." : "Usable call. Data extracted.")}
+      </div>
+      <div class="group"><h3>Transcript</h3><div style="padding:14px"><div class="transcript">${j.callTranscript}</div></div></div>
+    </div>`;
+  }
+  if (tab === "money") {
+    html = `<div class="panel-grid">
+      <div class="callout"><div class="callout-label">Money status</div><div class="callout-text">${moneyNarrative(j)}</div></div>
+      <div class="group"><h3>Financials</h3>
+        ${field("Diagnostic fee", money(j.diagnostic))}
+        ${field("Repair estimate", money(j.estimate))}
+        ${field("Pipeline total", money((j.diagnostic || 0) + (j.estimate || 0)))}
+        ${field("Payment status", j.status === "Paid" ? "Paid" : ["Waiting Prepayment"].includes(j.status) ? "Waiting diagnostic payment" : "Open")}
+        ${field("Warranty", j.status === "Paid" ? "30 days active" : "Not active yet")}
+      </div>
+    </div>`;
+  }
+  if (tab === "team") {
+    html = `<div class="panel-grid">
+      <div class="group"><h3>Ownership</h3>
+        ${field("Dispatcher / owner", j.owner ? staffLine(j.owner) : "No owner", !j.owner)}
+        ${field("Technician", j.technician ? staffLine(j.technician) : "No technician assigned", !j.technician)}
+        ${field("Production manager", "Mohamed")}
+        ${field("Estimate manager", "Dima")}
+      </div>
+      <div class="group"><h3>Client work group</h3>
+        ${field("Group name", `${j.customer} - ${j.city} - ${j.id}`)}
+        ${field("Members", "Dispatcher, Production Manager, Estimate Manager, Technician")}
+        ${field("Rule", "Create group automatically when lead is qualified.")}
+      </div>
+    </div>`;
+  }
+  if (tab === "timeline") {
+    html = `<div class="timeline">${j.history.map(e => `<div class="event ${e.current ? "current" : ""}"><div class="event-title">${e.title}</div><div class="event-meta">${e.meta}</div></div>`).join("")}</div>`;
+  }
+  $("#drawerBody").innerHTML = html;
+}
+
+function field(k, v, empty) {
+  return `<div class="field"><span class="k">${k}</span><span class="v ${empty ? "empty" : ""}">${v}</span></div>`;
+}
+
+function staffLine(person) {
+  return `<span style="display:inline-flex;align-items:center;gap:8px"><span class="mini-avatar" style="background:${person.color}">${initials(person.name)}</span>${person.name} <span style="color:var(--muted);font-size:12px">(${person.role})</span></span>`;
+}
+
+function nextBestAction(j) {
+  if (!j.address) return "Collect the full service address before dispatch. Do not send a technician without location confirmation.";
+  if (!j.email && ["Estimate Sent", "Repair Completed", "Paid"].includes(j.status)) return "Collect email so invoice, estimate, and warranty notes do not disappear.";
+  if (j.status === "New") return "Call the client, confirm equipment, address, diagnostic price, and preferred service window.";
+  if (j.status === "Waiting Prepayment") return "Collect diagnostic prepayment, then move the job to Ready to Dispatch.";
+  if (j.status === "Diagnostics Paid") return "Assign technician and send ETA to the client.";
+  if (j.status === "Estimate Sent") return "Follow up for approval. If approved, move to Repair In Progress or Parts Needed.";
+  if (j.status === "Repair Completed") return "Send invoice, collect payment, then activate warranty.";
+  if (j.status === "Paid") return "Schedule customer care follow-up before warranty expires.";
+  return j.summary;
+}
+
+function moneyNarrative(j) {
+  if (j.status === "Waiting Prepayment") return "Diagnostic was discussed but not collected. This is a revenue leak until someone follows up.";
+  if (j.status === "Estimate Sent") return "Repair revenue is waiting for client approval.";
+  if (j.status === "Repair Completed") return "Repair is complete. Invoice and payment should be handled immediately.";
+  if (j.status === "Paid") return "Money closed. Warranty and future customer care are now the priority.";
+  return "Financial data is tracked against diagnostics, estimate, invoice, payment, and warranty.";
+}
+
+function setStatus(id, newStatus, reason) {
+  const j = jobs.find(x => x.id === id);
+  if (!j || j.status === newStatus) return;
+  j.status = newStatus;
+  j.updated = "05-19 " + new Date().toTimeString().slice(0, 5);
+  j.updatedAgo = "just now";
+  j.history.push({ title: newStatus, meta: reason || "Status changed", current: true });
+  j.history.slice(0, -1).forEach(e => e.current = false);
+  render();
+  if (state.selectedJob === id) openDrawer(id);
+  toast(`${j.customer} moved to ${statusByKey(newStatus).label}`);
+}
+
+function updateClock() {
+  const d = new Date();
+  $("#clockLabel").textContent = d.toLocaleString([], { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+function toast(message) {
+  const t = $("#toast");
+  t.textContent = message;
+  t.classList.add("open");
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => t.classList.remove("open"), 2600);
+}
+
+document.addEventListener("click", (e) => {
+  const stateBtn = e.target.closest("[data-state]");
+  if (stateBtn) {
+    state.selectedState = stateBtn.dataset.state;
+    state.selectedCity = "all";
+    render();
+    return;
+  }
+  const cityBtn = e.target.closest("[data-city]");
+  if (cityBtn) {
+    state.selectedCity = cityBtn.dataset.city;
+    render();
+    return;
+  }
+  const viewBtn = e.target.closest("#viewTabs button");
+  if (viewBtn) {
+    state.view = viewBtn.dataset.view;
+    $$("#viewTabs button").forEach(b => b.classList.toggle("active", b === viewBtn));
+    renderLayout();
+    return;
+  }
+  const roleBtn = e.target.closest("#roleTabs button");
+  if (roleBtn) {
+    state.selectedRole = roleBtn.dataset.role;
+    $$("#roleTabs button").forEach(b => b.classList.toggle("active", b === roleBtn));
+    renderBoard();
+    return;
+  }
+  const action = e.target.closest("[data-action]");
+  if (action) {
+    e.stopPropagation();
+    const id = action.dataset.id || state.selectedJob;
+    if (action.dataset.action === "open" && id) openDrawer(id);
+    else toast(action.dataset.action.charAt(0).toUpperCase() + action.dataset.action.slice(1) + " action prepared");
+    return;
+  }
+  const card = e.target.closest(".job-card");
+  if (card) { openDrawer(card.dataset.id); return; }
+  const row = e.target.closest("tr[data-id]");
+  if (row) { openDrawer(row.dataset.id); return; }
+});
+
+document.addEventListener("dragstart", (e) => {
+  const card = e.target.closest(".job-card");
+  if (!card) return;
+  state.dragId = card.dataset.id;
+  card.classList.add("dragging");
+  e.dataTransfer.effectAllowed = "move";
+  e.dataTransfer.setData("text/plain", state.dragId);
+});
+
+document.addEventListener("dragend", () => {
+  state.dragId = null;
+  $$(".job-card").forEach(c => c.classList.remove("dragging"));
+  $$(".column").forEach(c => c.classList.remove("drop-target"));
+});
+
+document.addEventListener("dragover", (e) => {
+  const col = e.target.closest(".column");
+  if (!col) return;
+  e.preventDefault();
+  col.classList.add("drop-target");
+});
+
+document.addEventListener("dragleave", (e) => {
+  const col = e.target.closest(".column");
+  if (col && !col.contains(e.relatedTarget)) col.classList.remove("drop-target");
+});
+
+document.addEventListener("drop", (e) => {
+  const col = e.target.closest(".column");
+  if (!col) return;
+  e.preventDefault();
+  const id = e.dataTransfer.getData("text/plain") || state.dragId;
+  setStatus(id, col.dataset.status, "Dragged on Kanban board");
+});
+
+$("#globalSearch").addEventListener("input", (e) => { state.search = e.target.value; render(); });
+$("#btnOnlyUrgent").addEventListener("click", () => { state.urgentOnly = !state.urgentOnly; render(); });
+$("#btnOnlyUnassigned").addEventListener("click", () => { state.unassignedOnly = !state.unassignedOnly; render(); });
+$("#btnRefresh").addEventListener("click", () => { toast("Board refreshed"); render(); });
+$("#btnNewJob").addEventListener("click", () => toast("New Repair Job form would open here"));
+$("#btnDemoCall").addEventListener("click", () => {
+  jobs.unshift(job("RJ-2026-" + (1024 + jobs.length), "New Same-Day Caller", "NJ", "New Brunswick", "New", "Commercial freezer", "not holding temperature", "+1 732 484 9733", "", "", "BaroSite NJ", "Website", "high", null, 199, 0, "New call captured. Needs address confirmation and diagnostic offer.", "2026-05-19 12:01", 88));
+  render();
+  toast("Demo call added to New");
+});
+
+$("#drawerClose").addEventListener("click", closeDrawer);
+$("#drawerOverlay").addEventListener("click", closeDrawer);
+$("#statusSelect").addEventListener("change", (e) => { if (state.selectedJob) setStatus(state.selectedJob, e.target.value, "Changed from right panel"); });
+$("#btnAdvance").addEventListener("click", () => {
+  const j = jobs.find(x => x.id === state.selectedJob);
+  if (j && NEXT[j.status]) setStatus(j.id, NEXT[j.status], "Advanced using next action");
+});
+
+$("#drawerTabs").addEventListener("click", (e) => {
+  const tab = e.target.closest(".tab");
+  if (!tab) return;
+  state.activeTab = tab.dataset.tab;
+  $$("#drawerTabs .tab").forEach(t => t.classList.toggle("active", t === tab));
+  const j = jobs.find(x => x.id === state.selectedJob);
+  if (j) renderDrawerBody(j);
+});
+
+window.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+    e.preventDefault();
+    $("#globalSearch").focus();
+    $("#globalSearch").select();
+  }
+  if (e.key === "Escape") closeDrawer();
+});
+
+render();
+setInterval(updateClock, 30000);
+</script>
+</body>
+</html>

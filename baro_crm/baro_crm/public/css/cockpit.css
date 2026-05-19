@@ -1,0 +1,441 @@
+/* =============================================================================
+   baro_crm cockpit styles
+   Everything is namespaced under .baro-cockpit to avoid bleeding into Frappe
+   pages. The .baro-cockpit-page body class hides every Frappe website element.
+   ========================================================================== */
+
+/* -- 1. Hide Frappe website chrome on /repair-jobs --------------------------- */
+body.baro-cockpit-page {
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  background: #f7f8fa !important;
+}
+body.baro-cockpit-page > nav,
+body.baro-cockpit-page > header,
+body.baro-cockpit-page > footer,
+body.baro-cockpit-page .navbar,
+body.baro-cockpit-page .web-footer,
+body.baro-cockpit-page .breadcrumb-container,
+body.baro-cockpit-page #navbar-search,
+body.baro-cockpit-page .web-sidebar { display: none !important; }
+body.baro-cockpit-page main,
+body.baro-cockpit-page .web-page-container,
+body.baro-cockpit-page .page_content { padding: 0 !important; margin: 0 !important; max-width: none !important; }
+
+/* Skip-link for keyboard users */
+.baro-skip-link {
+  position: absolute; top: -100px; left: 12px;
+  background: #4f46e5; color: #fff;
+  padding: 8px 14px; border-radius: 8px;
+  font: 600 13px/1 Inter, sans-serif;
+  z-index: 10000;
+  transition: top .15s;
+}
+.baro-skip-link:focus { top: 12px; }
+
+/* -- 2. Boot state ---------------------------------------------------------- */
+.baro-boot {
+  position: fixed; inset: 0;
+  display: grid; place-items: center;
+  background: #f7f8fa;
+  font: 400 13px/1.4 Inter, sans-serif;
+  color: #64748b;
+  gap: 12px;
+}
+.baro-boot p { margin: 0; }
+.baro-spinner {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: 2.5px solid #e5e7eb;
+  border-top-color: #4f46e5;
+  animation: baro-spin .8s linear infinite;
+}
+@keyframes baro-spin { to { transform: rotate(360deg); } }
+.baro-cockpit.ready .baro-boot { display: none; }
+
+/* -- 3. Cockpit root + tokens ------------------------------------------------ */
+.baro-cockpit {
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --surface-2: #f1f3f6;
+  --border: #e5e7eb;
+  --border-strong: #d4d7dc;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --text-faint: #94a3b8;
+  --brand: #4f46e5;
+  --brand-50: #eef2ff;
+  --brand-100: #e0e7ff;
+  --brand-700: #4338ca;
+  --sidebar-bg: #0b1020;
+  --sidebar-text: #cbd5e1;
+  --sidebar-text-muted: #64748b;
+
+  --c-blue: #1d4ed8;    --c-blue-bg: #dbeafe;
+  --c-cyan: #155e75;    --c-cyan-bg: #cffafe;
+  --c-emerald: #047857; --c-emerald-bg: #d1fae5;
+  --c-amber: #92400e;   --c-amber-bg: #fef3c7;
+  --c-indigo: #4338ca;  --c-indigo-bg: #e0e7ff;
+  --c-rose: #be123c;    --c-rose-bg: #ffe4e6;
+  --c-slate: #334155;   --c-slate-bg: #e2e8f0;
+  --c-violet: #6d28d9;  --c-violet-bg: #ede9fe;
+
+  --radius: 10px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 1px 2px rgba(15,23,42,.06);
+  --shadow: 0 4px 12px rgba(15,23,42,.06), 0 1px 2px rgba(15,23,42,.04);
+  --shadow-lg: 0 20px 40px -12px rgba(15,23,42,.18);
+
+  position: fixed; inset: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: var(--bg);
+  display: grid; grid-template-columns: 248px 1fr;
+  z-index: 1;
+}
+.baro-cockpit *, .baro-cockpit *::before, .baro-cockpit *::after { box-sizing: border-box; }
+.baro-cockpit :focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 6px; }
+.baro-cockpit button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; padding: 0; }
+.baro-cockpit input, .baro-cockpit select, .baro-cockpit textarea { font-family: inherit; color: inherit; }
+.baro-cockpit ::-webkit-scrollbar { width: 10px; height: 10px; }
+.baro-cockpit ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; border: 2px solid var(--bg); }
+.baro-cockpit ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.baro-cockpit .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .baro-cockpit *, .baro-cockpit *::before, .baro-cockpit *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* -- 4. Sidebar ------------------------------------------------------------- */
+.baro-cockpit .sidebar { background: var(--sidebar-bg); color: var(--sidebar-text); display: flex; flex-direction: column; padding: 18px 14px; gap: 18px; overflow-y: auto; }
+.baro-cockpit .brand { display: flex; align-items: center; gap: 10px; padding: 4px 6px; }
+.baro-cockpit .brand-mark { width: 32px; height: 32px; background: linear-gradient(135deg, #6366f1, #ec4899); border-radius: 8px; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 13px; }
+.baro-cockpit .brand-text { line-height: 1.2; }
+.baro-cockpit .brand-text strong { color: #fff; font-size: 14px; display: block; }
+.baro-cockpit .brand-text small { color: var(--sidebar-text-muted); font-size: 11px; }
+.baro-cockpit .workspace-switcher { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; cursor: pointer; }
+.baro-cockpit .workspace-switcher:hover { background: rgba(255,255,255,0.07); }
+.baro-cockpit .workspace-switcher .ws-name { flex: 1; font-size: 12.5px; color: #e2e8f0; font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.baro-cockpit .nav-section { display: flex; flex-direction: column; gap: 2px; }
+.baro-cockpit .nav-label { font-size: 10.5px; font-weight: 600; color: var(--sidebar-text-muted); text-transform: uppercase; letter-spacing: 0.6px; padding: 8px 10px 4px; }
+.baro-cockpit .nav-item { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 7px; color: var(--sidebar-text); font-size: 13px; transition: background .12s, color .12s; text-align: left; width: 100%; }
+.baro-cockpit .nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.baro-cockpit .nav-item.active { background: linear-gradient(180deg, rgba(99,102,241,0.20), rgba(99,102,241,0.10)); color: #fff; box-shadow: inset 0 0 0 1px rgba(99,102,241,0.25); }
+.baro-cockpit .nav-item .icon { width: 16px; height: 16px; opacity: .8; flex-shrink: 0; }
+.baro-cockpit .nav-item .count { margin-left: auto; font-size: 11px; background: rgba(255,255,255,0.08); padding: 1px 7px; border-radius: 10px; }
+.baro-cockpit .nav-item.active .count { background: rgba(255,255,255,0.16); color: #fff; }
+.baro-cockpit .sidebar-footer { margin-top: auto; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 14px; display: flex; align-items: center; gap: 10px; }
+.baro-cockpit .avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #f59e0b, #ef4444); color: #fff; display: grid; place-items: center; font-weight: 600; font-size: 12px; flex-shrink: 0; }
+.baro-cockpit .sidebar-footer .user-info { flex: 1; line-height: 1.25; min-width: 0; }
+.baro-cockpit .sidebar-footer .user-info strong { color: #fff; font-size: 13px; display: block; }
+.baro-cockpit .sidebar-footer .user-info small { color: var(--sidebar-text-muted); font-size: 11px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* -- 5. Main + topbar ------------------------------------------------------- */
+.baro-cockpit .main { display: flex; flex-direction: column; min-width: 0; background: var(--bg); }
+.baro-cockpit .topbar { display: flex; align-items: center; gap: 12px; padding: 14px 22px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.baro-cockpit .breadcrumb { display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 13px; }
+.baro-cockpit .breadcrumb strong { color: var(--text); font-weight: 600; font-size: 14.5px; }
+.baro-cockpit .breadcrumb .sep { color: var(--text-faint); }
+.baro-cockpit .search-shell { flex: 1; max-width: 460px; margin-left: 24px; position: relative; }
+.baro-cockpit .search-shell input { width: 100%; padding: 8px 12px 8px 36px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); font-size: 13px; color: var(--text); outline: none; transition: border-color .15s, background .15s; }
+.baro-cockpit .search-shell input:focus { border-color: var(--brand); background: var(--surface); }
+.baro-cockpit .search-shell .s-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-faint); pointer-events: none; }
+.baro-cockpit .kbd-hint { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--text-faint); padding: 2px 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; }
+.baro-cockpit .topbar-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.baro-cockpit .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 7px; font-size: 13px; font-weight: 500; transition: all .15s; border: 1px solid transparent; white-space: nowrap; }
+.baro-cockpit .btn-ghost { color: var(--text-muted); }
+.baro-cockpit .btn-ghost:hover { background: var(--surface-2); color: var(--text); }
+.baro-cockpit .btn-outline { border-color: var(--border); color: var(--text); background: var(--surface); }
+.baro-cockpit .btn-outline:hover { border-color: var(--border-strong); background: var(--surface-2); }
+.baro-cockpit .btn-primary { background: var(--brand); color: #fff; }
+.baro-cockpit .btn-primary:hover { background: var(--brand-700); }
+.baro-cockpit .btn-icon { padding: 7px; }
+.baro-cockpit .btn[disabled] { opacity: .5; cursor: not-allowed; }
+
+/* -- 6. State tab strip ---------------------------------------------------- */
+.baro-cockpit .state-tabs { display: flex; align-items: center; gap: 4px; padding: 12px 22px 0; flex-wrap: wrap; }
+.baro-cockpit .state-tab {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 14px;
+  border-radius: 9px 9px 0 0;
+  font-size: 13.5px; font-weight: 500;
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  border-bottom: none;
+  position: relative; bottom: -1px;
+  transition: all .15s;
+}
+.baro-cockpit .state-tab:hover { background: var(--surface-2); color: var(--text); }
+.baro-cockpit .state-tab.active {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+  font-weight: 600;
+}
+.baro-cockpit .state-tab .count { font-size: 11.5px; background: var(--surface-2); padding: 1px 7px; border-radius: 10px; color: var(--text-muted); font-weight: 600; }
+.baro-cockpit .state-tab.active .count { background: var(--brand-50); color: var(--brand-700); }
+.baro-cockpit .state-tab.s-tx .count { background: #fee2e2; color: #b91c1c; }
+.baro-cockpit .state-tab.s-fl .count { background: #d1fae5; color: #047857; }
+.baro-cockpit .state-tab.s-ny .count { background: #dbeafe; color: #1d4ed8; }
+.baro-cockpit .state-tab.s-nj .count { background: #ede9fe; color: #6d28d9; }
+
+/* -- 7. Stats row ----------------------------------------------------------- */
+.baro-cockpit .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 14px 22px 0; }
+.baro-cockpit .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; transition: border-color .15s, transform .15s; position: relative; overflow: hidden; }
+.baro-cockpit .stat::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--brand); }
+.baro-cockpit .stat.emerald::before { background: var(--c-emerald); }
+.baro-cockpit .stat.amber::before { background: var(--c-amber); }
+.baro-cockpit .stat.rose::before { background: var(--c-rose); }
+.baro-cockpit .stat .stat-label { font-size: 11.5px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+.baro-cockpit .stat .stat-value { font-size: 24px; font-weight: 700; color: var(--text); }
+.baro-cockpit .stat .stat-foot { font-size: 11.5px; color: var(--text-muted); }
+
+/* -- 8. Toolbar ------------------------------------------------------------- */
+.baro-cockpit .work-toolbar { display: flex; align-items: center; gap: 10px; padding: 18px 22px 12px; flex-wrap: wrap; }
+.baro-cockpit .view-switch { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 3px; gap: 2px; }
+.baro-cockpit .view-switch button { padding: 5px 12px; border-radius: 5px; font-size: 12.5px; color: var(--text-muted); font-weight: 500; }
+.baro-cockpit .view-switch button.active { background: var(--bg); color: var(--text); box-shadow: var(--shadow-sm); }
+.baro-cockpit .filter-row { display: inline-flex; align-items: center; gap: 6px; flex: 1; flex-wrap: wrap; }
+.baro-cockpit .filter-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; background: var(--surface); border: 1px dashed var(--border-strong); font-size: 12.5px; color: var(--text-muted); transition: all .15s; }
+.baro-cockpit .filter-chip:hover { border-color: var(--brand); color: var(--text); background: var(--brand-50); }
+.baro-cockpit .filter-chip.active { border-style: solid; background: var(--brand-50); color: var(--brand-700); border-color: var(--brand-100); }
+
+/* -- 9. Table -------------------------------------------------------------- */
+.baro-cockpit .work-table-wrap { margin: 0 22px 22px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.baro-cockpit .table-head { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.baro-cockpit .table-head .th-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
+.baro-cockpit .table-head .th-count { font-size: 12px; color: var(--text-muted); margin-left: 8px; }
+.baro-cockpit .table-head .right { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+.baro-cockpit .table-scroll { flex: 1; overflow: auto; }
+.baro-cockpit .table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+.baro-cockpit .table thead th { text-align: left; padding: 10px 14px; font-size: 11.5px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; background: #fafbfc; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1; white-space: nowrap; }
+.baro-cockpit .table thead th:first-child { padding-left: 18px; width: 40px; }
+.baro-cockpit .table tbody tr { transition: background .1s; cursor: pointer; }
+.baro-cockpit .table tbody tr:hover { background: #fafbfc; }
+.baro-cockpit .table tbody tr.selected { background: var(--brand-50); }
+.baro-cockpit .table tbody tr:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; background: var(--brand-50); }
+.baro-cockpit .table tbody td { padding: 11px 14px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+.baro-cockpit .table tbody td:first-child { padding-left: 18px; }
+.baro-cockpit .table tbody tr:last-child td { border-bottom: none; }
+.baro-cockpit .customer-cell { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.baro-cockpit .customer-cell .avatar { width: 28px; height: 28px; font-size: 11px; }
+.baro-cockpit .customer-cell .col { line-height: 1.3; min-width: 0; }
+.baro-cockpit .customer-cell .col strong { display: block; font-weight: 600; font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+.baro-cockpit .customer-cell .col small { font-size: 11.5px; color: var(--text-muted); }
+.baro-cockpit .id-cell { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: var(--text-muted); }
+.baro-cockpit .empty-table { padding: 60px 20px; text-align: center; color: var(--text-muted); }
+.baro-cockpit .empty-table strong { display: block; color: var(--text); font-size: 15px; margin-bottom: 4px; }
+
+/* -- 10. Status pill ------------------------------------------------------- */
+.baro-cockpit .status-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px 3px 8px;
+  border-radius: 999px;
+  font-size: 12px; font-weight: 600;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  transition: all .15s;
+}
+.baro-cockpit .status-pill:hover { box-shadow: var(--shadow-sm); }
+.baro-cockpit .status-pill .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.baro-cockpit .status-pill .caret { opacity: .55; }
+.baro-cockpit .status-pill.s-blue    { color: var(--c-blue);    background: var(--c-blue-bg); }
+.baro-cockpit .status-pill.s-blue .dot    { background: var(--c-blue); }
+.baro-cockpit .status-pill.s-cyan    { color: var(--c-cyan);    background: var(--c-cyan-bg); }
+.baro-cockpit .status-pill.s-cyan .dot    { background: var(--c-cyan); }
+.baro-cockpit .status-pill.s-emerald { color: var(--c-emerald); background: var(--c-emerald-bg); }
+.baro-cockpit .status-pill.s-emerald .dot { background: var(--c-emerald); }
+.baro-cockpit .status-pill.s-amber   { color: var(--c-amber);   background: var(--c-amber-bg); }
+.baro-cockpit .status-pill.s-amber .dot   { background: var(--c-amber); }
+.baro-cockpit .status-pill.s-indigo  { color: var(--c-indigo);  background: var(--c-indigo-bg); }
+.baro-cockpit .status-pill.s-indigo .dot  { background: var(--c-indigo); }
+.baro-cockpit .status-pill.s-violet  { color: var(--c-violet);  background: var(--c-violet-bg); }
+.baro-cockpit .status-pill.s-violet .dot  { background: var(--c-violet); }
+.baro-cockpit .status-pill.s-rose    { color: var(--c-rose);    background: var(--c-rose-bg); }
+.baro-cockpit .status-pill.s-rose .dot    { background: var(--c-rose); }
+.baro-cockpit .status-pill.s-slate   { color: var(--c-slate);   background: var(--c-slate-bg); }
+.baro-cockpit .status-pill.s-slate .dot   { background: var(--c-slate); }
+
+/* -- 11. Misc cells -------------------------------------------------------- */
+.baro-cockpit .source-tag { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 5px; background: var(--surface-2); color: var(--text-muted); font-size: 12px; font-weight: 500; }
+.baro-cockpit .source-tag .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text-faint); }
+.baro-cockpit .equipment-cell { display: flex; align-items: center; gap: 6px; color: var(--text); font-size: 12.5px; }
+.baro-cockpit .equipment-cell .urg { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.baro-cockpit .equipment-cell .urg.Emergency { background: var(--c-rose); box-shadow: 0 0 0 3px rgba(225,29,72,0.12); }
+.baro-cockpit .equipment-cell .urg.Today { background: var(--c-rose); }
+.baro-cockpit .equipment-cell .urg.This-Week { background: var(--c-amber); }
+.baro-cockpit .equipment-cell .urg.Scheduled { background: var(--c-slate); }
+.baro-cockpit .equipment-cell .urg.Unknown { background: var(--text-faint); }
+.baro-cockpit .tech-cell { display: flex; align-items: center; gap: 6px; }
+.baro-cockpit .tech-cell .avatar { width: 22px; height: 22px; font-size: 10px; }
+.baro-cockpit .tech-cell.empty { color: var(--text-faint); font-style: italic; font-size: 12px; }
+.baro-cockpit .time-cell { color: var(--text-muted); font-size: 12.5px; line-height: 1.3; }
+.baro-cockpit .time-cell small { display: block; color: var(--text-faint); font-size: 11px; }
+
+/* -- 12. Inspector --------------------------------------------------------- */
+.baro-cockpit .inspector {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: 560px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  transform: translateX(100%);
+  transition: transform .28s cubic-bezier(0.22, 1, 0.36, 1);
+  display: flex; flex-direction: column;
+  z-index: 30;
+}
+.baro-cockpit .inspector.open { transform: translateX(0); }
+.baro-cockpit .inspector-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.18); backdrop-filter: blur(2px); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 25; }
+.baro-cockpit .inspector-overlay.open { opacity: 1; pointer-events: all; }
+
+.baro-cockpit .insp-head { padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 12px; }
+.baro-cockpit .insp-head .col-main { flex: 1; min-width: 0; }
+.baro-cockpit .insp-id { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+.baro-cockpit .insp-head h2 { margin: 0 0 6px; font-size: 19px; font-weight: 700; color: var(--text); line-height: 1.25; }
+.baro-cockpit .insp-meta { font-size: 12.5px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.baro-cockpit .insp-meta .sep { color: var(--text-faint); }
+.baro-cockpit .insp-close { padding: 6px; border-radius: 7px; color: var(--text-muted); }
+.baro-cockpit .insp-close:hover { background: var(--surface-2); color: var(--text); }
+
+.baro-cockpit .insp-status-bar { padding: 14px 22px; background: var(--surface-2); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.baro-cockpit .insp-status-bar .label { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-muted); font-weight: 600; }
+
+.baro-cockpit .insp-tabs { display: flex; padding: 0 22px; border-bottom: 1px solid var(--border); gap: 4px; }
+.baro-cockpit .insp-tab { padding: 12px 14px; font-size: 13px; font-weight: 500; color: var(--text-muted); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .15s; }
+.baro-cockpit .insp-tab:hover { color: var(--text); }
+.baro-cockpit .insp-tab.active { color: var(--brand); border-color: var(--brand); }
+.baro-cockpit .insp-tab .badge { font-size: 10.5px; background: var(--surface-2); padding: 1px 6px; border-radius: 8px; margin-left: 4px; color: var(--text-muted); }
+
+.baro-cockpit .insp-body { flex: 1; overflow: auto; padding: 18px 22px 110px; }
+.baro-cockpit .insp-actionbar { position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 22px; background: var(--surface); border-top: 1px solid var(--border); display: flex; gap: 8px; box-shadow: 0 -8px 20px rgba(15,23,42,0.04); }
+
+/* -- 13. Editable fields --------------------------------------------------- */
+.baro-cockpit .field-group { margin-bottom: 22px; }
+.baro-cockpit .field-group h4 { margin: 0 0 12px; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.baro-cockpit .field-group h4::after { content: ""; flex: 1; height: 1px; background: var(--border); margin-left: 8px; }
+.baro-cockpit .field {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 14px;
+  padding: 4px 0;
+  align-items: start;
+}
+.baro-cockpit .field .k { font-size: 12.5px; color: var(--text-muted); padding-top: 8px; }
+.baro-cockpit .field .v {
+  font-size: 13px; color: var(--text); line-height: 1.5;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+  min-height: 28px;
+  border: 1px solid transparent;
+  transition: background .12s, border-color .12s;
+}
+.baro-cockpit .field .v:hover { background: var(--surface-2); }
+.baro-cockpit .field .v.editing { background: var(--surface); border-color: var(--brand-100); box-shadow: 0 0 0 3px var(--brand-50); padding: 0; }
+.baro-cockpit .field .v.empty { color: var(--text-faint); font-style: italic; }
+.baro-cockpit .field .v.readonly { cursor: default; }
+.baro-cockpit .field .v.readonly:hover { background: transparent; }
+.baro-cockpit .field .v.saving { opacity: .6; pointer-events: none; }
+.baro-cockpit .field .v.saved { background: var(--c-emerald-bg); }
+.baro-cockpit .field .v.error { background: var(--c-rose-bg); color: var(--c-rose); }
+.baro-cockpit .field input.field-input,
+.baro-cockpit .field select.field-input,
+.baro-cockpit .field textarea.field-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  font-family: inherit;
+  resize: vertical;
+}
+.baro-cockpit .field textarea.field-input { min-height: 64px; }
+.baro-cockpit .field-error { color: var(--c-rose); font-size: 11.5px; margin-top: 3px; padding: 0 8px; }
+
+.baro-cockpit .ai-summary { background: linear-gradient(135deg, #faf5ff, #eef2ff); border: 1px solid var(--brand-100); border-radius: var(--radius); padding: 12px 14px; font-size: 13px; line-height: 1.55; color: var(--text); margin-bottom: 12px; position: relative; }
+.baro-cockpit .ai-summary::before { content: "✨ AI Summary"; display: block; font-size: 10.5px; font-weight: 700; color: var(--brand); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.baro-cockpit .transcript-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; font-size: 13px; line-height: 1.55; color: var(--text); max-height: 220px; overflow: auto; white-space: pre-wrap; }
+
+/* -- 14. Timeline ---------------------------------------------------------- */
+.baro-cockpit .timeline { position: relative; padding-left: 22px; }
+.baro-cockpit .timeline::before { content: ""; position: absolute; left: 6px; top: 6px; bottom: 6px; width: 2px; background: var(--border); }
+.baro-cockpit .timeline-item { position: relative; padding: 6px 0 16px; }
+.baro-cockpit .timeline-item::before { content: ""; position: absolute; left: -22px; top: 9px; width: 14px; height: 14px; border-radius: 50%; background: var(--surface); border: 2px solid var(--border-strong); }
+.baro-cockpit .timeline-item.k-comment::before { border-color: var(--c-violet); background: var(--c-violet); }
+.baro-cockpit .timeline-item.k-change::before { border-color: var(--c-indigo); background: var(--c-indigo); }
+.baro-cockpit .timeline-item.k-info::before { border-color: var(--c-blue); background: var(--c-blue); }
+.baro-cockpit .timeline-item .ti-title { font-weight: 600; font-size: 13px; color: var(--text); }
+.baro-cockpit .timeline-item .ti-meta { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+.baro-cockpit .timeline-item .ti-note { font-size: 12.5px; color: var(--text); margin-top: 6px; padding: 8px 10px; background: var(--surface-2); border-radius: 6px; line-height: 1.5; }
+.baro-cockpit .timeline-item .ti-change { font-size: 12px; color: var(--text-muted); margin-top: 4px; padding: 6px 10px; background: var(--surface-2); border-radius: 6px; }
+.baro-cockpit .timeline-item .ti-change b { color: var(--text); }
+.baro-cockpit .timeline-item .ti-change .old { color: var(--c-rose); text-decoration: line-through; }
+.baro-cockpit .timeline-item .ti-change .new { color: var(--c-emerald); font-weight: 600; }
+
+.baro-cockpit .comment-composer {
+  margin-bottom: 18px;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+.baro-cockpit .comment-composer textarea {
+  width: 100%; min-height: 60px;
+  padding: 6px;
+  border: none; background: transparent;
+  font-size: 13px; resize: vertical;
+  outline: none; font-family: inherit;
+}
+.baro-cockpit .comment-composer .row { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
+.baro-cockpit .comment-composer .hint { font-size: 11.5px; color: var(--text-muted); flex: 1; }
+
+/* -- 15. Status popover ---------------------------------------------------- */
+.baro-cockpit .popover { position: fixed; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-lg); z-index: 100; min-width: 260px; max-height: 380px; overflow: auto; padding: 6px; opacity: 0; pointer-events: none; transform: translateY(-4px); transition: opacity .12s, transform .12s; }
+.baro-cockpit .popover.open { opacity: 1; pointer-events: all; transform: translateY(0); }
+.baro-cockpit .popover .pop-search { width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12.5px; margin-bottom: 4px; outline: none; }
+.baro-cockpit .popover .pop-search:focus { border-color: var(--brand); }
+.baro-cockpit .popover .pop-label { font-size: 10.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; padding: 8px 8px 4px; }
+.baro-cockpit .popover .pop-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; font-size: 13px; color: var(--text); width: 100%; text-align: left; cursor: pointer; }
+.baro-cockpit .popover .pop-item:hover { background: var(--surface-2); }
+.baro-cockpit .popover .pop-item .pop-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.baro-cockpit .popover .pop-item.current { background: var(--brand-50); color: var(--brand-700); font-weight: 600; }
+.baro-cockpit .popover .pop-item:disabled { opacity: .35; cursor: not-allowed; }
+
+/* -- 16. Toast ------------------------------------------------------------- */
+.baro-cockpit .toast { position: fixed; bottom: 22px; left: 50%; transform: translate(-50%, 80px); background: var(--text); color: #fff; padding: 10px 16px; border-radius: 8px; font-size: 13px; box-shadow: var(--shadow-lg); z-index: 200; transition: transform .25s cubic-bezier(0.22, 1, 0.36, 1); display: flex; align-items: center; gap: 8px; max-width: min(560px, 90vw); }
+.baro-cockpit .toast.open { transform: translate(-50%, 0); }
+.baro-cockpit .toast.ok .toast-icon { color: #34d399; }
+.baro-cockpit .toast.err { background: #be123c; }
+.baro-cockpit .toast.err .toast-icon { color: #fff; }
+
+/* -- 17. Responsive -------------------------------------------------------- */
+@media (max-width: 1280px) { .baro-cockpit .stats { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 980px) {
+  .baro-cockpit { grid-template-columns: 64px 1fr; }
+  .baro-cockpit .sidebar .nav-label,
+  .baro-cockpit .sidebar .brand-text,
+  .baro-cockpit .sidebar .workspace-switcher .ws-name,
+  .baro-cockpit .sidebar .nav-item span:not(.icon):not(.count),
+  .baro-cockpit .sidebar-footer .user-info { display: none; }
+  .baro-cockpit .nav-item { justify-content: center; }
+  .baro-cockpit .inspector { width: 100%; }
+}
+
+/* -- 18. Avatar background varieties (deterministic from name) -------------- */
+.baro-cockpit .avatar.c0 { background: linear-gradient(135deg, #6366f1, #a78bfa); }
+.baro-cockpit .avatar.c1 { background: linear-gradient(135deg, #ec4899, #f472b6); }
+.baro-cockpit .avatar.c2 { background: linear-gradient(135deg, #10b981, #34d399); }
+.baro-cockpit .avatar.c3 { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+.baro-cockpit .avatar.c4 { background: linear-gradient(135deg, #06b6d4, #22d3ee); }
+.baro-cockpit .avatar.c5 { background: linear-gradient(135deg, #8b5cf6, #a78bfa); }
+.baro-cockpit .avatar.c6 { background: linear-gradient(135deg, #ef4444, #fb7185); }
+.baro-cockpit .avatar.c7 { background: linear-gradient(135deg, #14b8a6, #5eead4); }

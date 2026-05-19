@@ -1,0 +1,36 @@
+{%- extends "templates/web.html" -%}
+
+{%- block title -%}Repair Jobs · Baro Service{%- endblock -%}
+
+{%- block head_include -%}
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#0b1020">
+<meta name="csrf_token" content="{{ csrf_token }}">
+<meta name="cockpit_user" content="{{ user }}">
+<meta name="cockpit_user_full_name" content="{{ user_full_name }}">
+<meta name="cockpit_user_initials" content="{{ user_initials }}">
+<meta name="cockpit_company" content="{{ company }}">
+<meta name="cockpit_can_write" content="{{ can_write_repair_job }}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/baro_crm/css/cockpit.css">
+{%- endblock -%}
+
+{%- block content -%}
+<a href="#cockpit" class="baro-skip-link">Skip to cockpit</a>
+<div id="cockpit" class="baro-cockpit" data-user="{{ user }}" data-can-write="{{ can_write_repair_job }}">
+  <div class="baro-boot">
+    <div class="baro-spinner" aria-hidden="true"></div>
+    <p>Loading repair workspace…</p>
+  </div>
+</div>
+<noscript>
+  <div style="padding:40px;text-align:center;font-family:sans-serif;">
+    <h2>JavaScript required</h2>
+    <p>The Repair Jobs cockpit needs JavaScript. Please enable it and reload.</p>
+  </div>
+</noscript>
+<script src="/assets/baro_crm/js/cockpit.js" defer></script>
+{%- endblock -%}
