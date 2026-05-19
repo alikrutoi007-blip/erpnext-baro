@@ -103,11 +103,59 @@ docker compose -f "$BARO_COMPOSE" exec -T backend bash -lc "
   bench --site $BARO_SITE migrate
 "
 
-say "5/6 · Building frontend assets"
-docker compose -f "$BARO_COMPOSE" exec -T backend bash -lc "
-  cd $BARO_BENCH_PATH
-  bench build --app baro_crm || true   # build can be optional in dev
-"
+say "5/6 · Materializing baro_crm assets as real files + verifying via nginx"
+# Symlink-only assets have produced 404s here. We replace any prior
+# sites/assets/baro_crm with a REAL directory of copied files, then
+# smoke-test via the actual nginx the browser hits (Docker DNS: frontend:8080),
+# NOT localhost:8080 — inside the backend container that's gunicorn, which
+# does not serve /assets/.
+docker compose -f "$BARO_COMPOSE" exec -T backend bash <<'ASSET_CHECK_EOF'
+set -e
+cd /home/frappe/frappe-bench
+
+ASSET_DIR=sites/assets/baro_crm
+SRC_DIR=apps/baro_crm/baro_crm/public
+
+if [ ! -d "$SRC_DIR" ]; then
+  echo "FAIL source assets missing at $SRC_DIR"
+  exit 1
+fi
+
+rm -rf "$ASSET_DIR"
+mkdir -p "$ASSET_DIR"
+cp -R "$SRC_DIR"/* "$ASSET_DIR"/
+
+if [ -L "$ASSET_DIR" ]; then
+  echo "FAIL $ASSET_DIR is a symlink after copy"
+  exit 1
+fi
+
+echo "▸ Real files in $ASSET_DIR:"
+for f in css/cockpit.css js/cockpit.js vendor/Sortable.min.js; do
+  full="$ASSET_DIR/$f"
+  if [ ! -f "$full" ]; then echo "  FAIL $f missing"; exit 1; fi
+  if [ -L "$full" ]; then echo "  FAIL $f is a symlink"; exit 1; fi
+  size=$(stat -c%s "$full" 2>/dev/null || echo 0)
+  if [ "$size" -lt 100 ]; then echo "  FAIL $f is $size bytes"; exit 1; fi
+  echo "  OK   $f ($size bytes)"
+done
+
+FRONTEND_SVC="${BARO_FRONTEND_SVC:-frontend}"
+FRONTEND_PORT="${BARO_FRONTEND_PORT:-8080}"
+echo "▸ HTTP smoke via http://${FRONTEND_SVC}:${FRONTEND_PORT}:"
+for path in \
+  /assets/baro_crm/css/cockpit.css \
+  /assets/baro_crm/js/cockpit.js \
+  /assets/baro_crm/vendor/Sortable.min.js; do
+  url="http://${FRONTEND_SVC}:${FRONTEND_PORT}${path}"
+  code=$(curl -s -o /dev/null -w "%{http_code}" -m 5 "$url")
+  if [ "$code" != "200" ]; then
+    echo "  FAIL ${path} → HTTP ${code} (via ${url})"
+    exit 1
+  fi
+  echo "  OK   ${path} → 200"
+done
+ASSET_CHECK_EOF
 
 say "6/6 · Clearing cache"
 docker compose -f "$BARO_COMPOSE" exec -T backend bash -lc "
