@@ -151,6 +151,41 @@ docker compose -f ~/frappe_docker/pwd.yml exec backend bash -lc \
 
 ---
 
+## Third-party dependencies
+
+| Package | Version | License | Source |
+|---|---|---|---|
+| SortableJS | 1.15.6 | MIT | https://github.com/SortableJS/Sortable/releases/tag/1.15.6 — vendored in `baro_crm/baro_crm/public/vendor/Sortable.min.js`. Upstream license copied to `LICENSE-Sortable.txt` in the same folder. SHA-256: `6d0a831fc19b4bae851797ad3393157e861afb7862459c11226359b27e2c4337` |
+
+We deliberately do **not** depend on npm or any build step. `bench build` requires Node.js, which is not installed in the backend container of this `pwd.yml` setup.
+
+To upgrade SortableJS:
+
+1. Replace `Sortable.min.js` and `LICENSE-Sortable.txt` from the new release.
+2. Update the version and SHA-256 in this table.
+3. Re-run `./install.sh` on the server.
+4. Re-run all 14 manual browser tests from the design spec.
+
+## Asset verification
+
+`install.sh` step 5/6 materializes baro_crm assets as **real files** under `sites/assets/baro_crm/` (not a symlink) and verifies them three ways:
+
+1. Real-file presence at the expected paths.
+2. Each file ≥100 bytes (catches empty/broken downloads).
+3. HTTP 200 via the Docker-internal DNS name `frontend:8080` — the actual nginx the browser hits, not gunicorn on `localhost:8080`.
+
+If step 5/6 fails:
+
+| Failure | Likely cause | Fix |
+|---|---|---|
+| `FAIL source assets missing at apps/baro_crm/baro_crm/public` | docker cp didn't put source in the right place | Re-run install.sh from start; step 1 wipes and re-copies |
+| `FAIL <file> is a symlink` | Something restored the old symlink between step 5 and step 5/6 (unlikely) | Re-run install.sh from step 5 |
+| `FAIL <file> is N bytes` for N < 100 | File was empty in source | Check the source file on your laptop; re-sync the project folder |
+| `FAIL <path> → HTTP 404 (via http://frontend:8080...)` | nginx isn't serving the dir OR FRONTEND_SVC is wrong | Run `docker compose -f ~/frappe_docker/pwd.yml ps` — confirm nginx-serving service is named `frontend`. If different, run with `BARO_FRONTEND_SVC=nginx ./install.sh` |
+| `FAIL <path> → HTTP 502` | nginx is up but upstream is down | `docker compose -f ~/frappe_docker/pwd.yml restart backend` and retry |
+
+---
+
 ## Files modified on the server
 
 After install, only these locations are touched:
