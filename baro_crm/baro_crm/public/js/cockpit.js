@@ -530,19 +530,27 @@
               const customerLabel = (j.customer || '').replace(/^DEMO\s*-\s*/i, '');
               return `
                 <div class="kanban-card" data-id="${escapeHtml(j.name)}" data-status="${escapeHtml(j.status)}">
-                  <div class="kc-id">${escapeHtml(j.name)}</div>
-                  <div class="kc-title">${escapeHtml(customerLabel || j.name)}</div>
-                  <div class="kc-meta">
-                    <span class="status-pill s-${s.color}"><span class="dot" aria-hidden="true"></span>${escapeHtml(j.status)}</span>
-                  </div>
-                  <div class="kc-meta" style="margin-top:6px;">
-                    ${escapeHtml(j.equipment_type || '—')} • ${escapeHtml(j.service_state || j.area || '—')}
-                  </div>
-                  <div class="kc-foot">
-                    ${j.technician
-                      ? `<div class="avatar ${colorClass(j.technician)}" aria-hidden="true">${escapeHtml(initials(j.technician))}</div><span style="font-size:11.5px;color:var(--text-muted);">${escapeHtml(j.technician)}</span>`
-                      : `<span style="font-size:11px;color:var(--text-faint);font-style:italic;">Unassigned</span>`}
-                    <small>${escapeHtml(formatRelativeTime(j.modified))}</small>
+                  <span class="kc-handle" data-stop aria-label="Drag ${escapeHtml(customerLabel || j.name)}" tabindex="-1">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <circle cx="9" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/>
+                      <circle cx="15" cy="6" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
+                    </svg>
+                  </span>
+                  <div class="kc-body">
+                    <div class="kc-id">${escapeHtml(j.name)}</div>
+                    <div class="kc-title">${escapeHtml(customerLabel || j.name)}</div>
+                    <div class="kc-meta">
+                      <span class="status-pill s-${s.color}" data-stop><span class="dot" aria-hidden="true"></span>${escapeHtml(j.status)}</span>
+                    </div>
+                    <div class="kc-meta" style="margin-top:6px;">
+                      ${escapeHtml(j.equipment_type || '—')} • ${escapeHtml(j.service_state || j.area || '—')}
+                    </div>
+                    <div class="kc-foot">
+                      ${j.technician
+                        ? `<div class="avatar ${colorClass(j.technician)}" aria-hidden="true">${escapeHtml(initials(j.technician))}</div><span style="font-size:11.5px;color:var(--text-muted);">${escapeHtml(j.technician)}</span>`
+                        : `<span style="font-size:11px;color:var(--text-faint);font-style:italic;">Unassigned</span>`}
+                      <small>${escapeHtml(formatRelativeTime(j.modified))}</small>
+                    </div>
                   </div>
                 </div>`;
             }).join('')}
