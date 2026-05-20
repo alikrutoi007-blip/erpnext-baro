@@ -89,6 +89,24 @@
     { key: 'New Jersey',  label: 'New Jersey',  cls: 's-nj' },
   ];
 
+  // ---------------------------------------------------------------------------
+  // Drag/drop: column → status map and destructive status set
+  // (Must match the cols array in renderKanban())
+  // ---------------------------------------------------------------------------
+  const COLUMN_STATUSES = {
+    'Intake':       new Set(['New', 'Need Follow-up']),
+    'Sales':        new Set(['Diagnostics Offered', 'Waiting Prepayment',
+                             'Diagnostics Paid', 'Estimate Sent',
+                             'Waiting Client Approval']),
+    'Production':   new Set(['Technician Assigned', 'Diagnostics In Progress',
+                             'Diagnosis Completed', 'Parts Needed',
+                             'Repair In Progress', 'Repair Completed']),
+    'Money & Care': new Set(['Invoice Sent', 'Paid', 'Warranty Active', 'Closed']),
+    'Out':          new Set(['Lost', 'Spam', 'Unrelated']),
+  };
+
+  const DESTRUCTIVE_STATUSES = new Set(['Lost', 'Spam', 'Unrelated', 'Closed']);
+
   // Inline-editable fields — metadata that controls the inline editor.
   // Keys must match the EDITABLE_FIELDS allowlist in repair_job.py exactly.
   const FIELD_META = {
@@ -242,6 +260,104 @@
     changeStatus: (repair_job, action) => call('baro_crm.api.repair_job.change_status', { repair_job, action }),
     searchLink: (doctype, query) => call('baro_crm.api.repair_job.search_link', { doctype, query }),
   };
+
+  // ---------------------------------------------------------------------------
+  // Section 16: Drag/drop — pure helpers
+  // ---------------------------------------------------------------------------
+  function resolveDropAction(cardStatus, targetColumnName) {
+    const targetSet = COLUMN_STATUSES[targetColumnName];
+    if (!targetSet) return { kind: 'none', reason: 'unknown column ' + targetColumnName };
+    const candidates = TRANSITIONS_FROM[cardStatus] || [];
+    const valid = candidates.filter(t => targetSet.has(t.to));
+    if (valid.length === 0) return { kind: 'none', reason: 'no valid transition from ' + cardStatus + ' to ' + targetColumnName };
+    if (valid.length === 1) return { kind: 'single', action: valid[0] };
+    return { kind: 'multi', actions: valid };
+  }
+
+  function revertSortableMove(evt) {
+    if (!evt || !evt.from || !evt.item) return;
+    const siblings = evt.from.children;
+    const before = siblings[evt.oldIndex] || null;
+    evt.from.insertBefore(evt.item, before);
+  }
+
+  function cleanupDragVisuals() {
+    document.body.classList.remove('is-dragging');
+    document.querySelectorAll('.baro-cockpit .kanban-col-body.drop-valid')
+      .forEach(el => el.classList.remove('drop-valid'));
+    document.querySelectorAll('.baro-cockpit .kanban-col-body.drop-invalid-hover')
+      .forEach(el => el.classList.remove('drop-invalid-hover'));
+    document.querySelectorAll('.baro-cockpit .kanban-col-body[data-empty-from]')
+      .forEach(el => { el.removeAttribute('data-empty-from'); });
+    document.querySelectorAll('.baro-cockpit .kanban-col-body[data-empty-to]')
+      .forEach(el => { el.removeAttribute('data-empty-to'); });
+  }
+
+  // Lazily-built destructive-confirm dialog. Appended INSIDE .baro-cockpit so
+  // the namespaced CSS in cockpit.css applies.
+  let confirmEl = null;
+  function ensureConfirmDom() {
+    if (confirmEl) return confirmEl;
+    const root = document.createElement('div');
+    root.className = 'confirm-overlay';
+    root.setAttribute('aria-hidden', 'true');
+    root.innerHTML = `
+      <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" tabindex="-1">
+        <h3 id="confirmTitle"></h3>
+        <div class="confirm-desc" id="confirmDesc"></div>
+        <div class="confirm-actions">
+          <button class="btn btn-outline" data-confirm-cancel type="button">Cancel</button>
+          <button class="btn-destructive" data-confirm-ok type="button"></button>
+        </div>
+      </div>
+    `;
+    const cockpitRoot = document.querySelector('.baro-cockpit') || document.body;
+    cockpitRoot.appendChild(root);
+    confirmEl = root;
+    return root;
+  }
+
+  function showConfirmDialog({ title, desc, okLabel }) {
+    return new Promise((resolve) => {
+      const root = ensureConfirmDom();
+      root.querySelector('#confirmTitle').textContent = title;
+      root.querySelector('#confirmDesc').textContent = desc;
+      root.querySelector('[data-confirm-ok]').textContent = okLabel;
+      const okBtn = root.querySelector('[data-confirm-ok]');
+      const cancelBtn = root.querySelector('[data-confirm-cancel]');
+
+      let settled = false;
+      function close(result) {
+        if (settled) return;
+        settled = true;
+        root.classList.remove('open');
+        root.setAttribute('aria-hidden', 'true');
+        document.removeEventListener('keydown', onKey);
+        root.removeEventListener('click', onOverlayClick);
+        okBtn.removeEventListener('click', onOk);
+        cancelBtn.removeEventListener('click', onCancel);
+        resolve(result);
+      }
+      function onOk(e) { e.preventDefault(); e.stopPropagation(); close(true); }
+      function onCancel(e) { e.preventDefault(); e.stopPropagation(); close(false); }
+      function onOverlayClick(e) { if (e.target === root) close(false); }
+      function onKey(e) {
+        if (e.key === 'Escape') { e.preventDefault(); close(false); }
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          (document.activeElement === okBtn ? cancelBtn : okBtn).focus();
+        }
+      }
+      okBtn.addEventListener('click', onOk);
+      cancelBtn.addEventListener('click', onCancel);
+      root.addEventListener('click', onOverlayClick);
+      document.addEventListener('keydown', onKey);
+
+      root.classList.add('open');
+      root.setAttribute('aria-hidden', 'false');
+      setTimeout(() => cancelBtn.focus(), 30);
+    });
+  }
 
   // ---------------------------------------------------------------------------
   // 4. Render: full shell
@@ -1190,7 +1306,7 @@
         return;
       }
 
-      const popItem = e.target.closest('.pop-item');
+      const popItem = e.target.closest('.pop-item[data-status]');
       if (popItem) {
         applyAction(state.statusPopoverFor, popItem.dataset.action);
         return;
