@@ -445,19 +445,151 @@
     cleanupDragVisuals();
   }
 
-  // Replaced by Task 23
-  function handleDropResolution(evt) {
-    console.warn('handleDropResolution not implemented yet');
+  async function handleDropResolution(evt) {
+    const targetCol = evt.to ? evt.to.dataset.column : null;
+    const cardStatus = evt.item.dataset.status;
+    const cardId = evt.item.dataset.id;
+    const job = state.jobs.find(j => j.name === cardId);
+    const customer = (job && job.customer) || cardId;
+
+    if (!targetCol) {
+      revertSortableMove(evt);
+      return;
+    }
+
+    const res = resolveDropAction(cardStatus, targetCol);
+
+    if (res.kind === 'none') {
+      revertSortableMove(evt);
+      toast(`No workflow transition from ${cardStatus} to ${targetCol}`, 'err');
+      return;
+    }
+
+    if (res.kind === 'single') {
+      if (DESTRUCTIVE_STATUSES.has(res.action.to)) {
+        await runDestructive(evt, cardId, customer, res.action);
+      } else {
+        await runHappyPath(evt, cardId, res.action);
+      }
+      return;
+    }
+
+    if (res.kind === 'multi') {
+      revertSortableMove(evt);
+      showDragMultiPopover(evt, cardId, customer, res.actions);
+    }
   }
-  // Replaced by Task 24
+
+  async function runHappyPath(evt, cardId, action) {
+    try {
+      const r = await api.changeStatus(cardId, action.action);
+      const job = state.jobs.find(j => j.name === cardId);
+      if (job) job.status = r.status;
+      renderKanban();
+      api.stateCounts().then(c => { state.stateCounts = c; renderStateTabs(); });
+      toast(`Status: ${r.status}`, 'ok');
+      if (state.selectedId === cardId) openInspector(cardId);
+    } catch (e) {
+      revertSortableMove(evt);
+      toast('Status change failed: ' + extractError(e), 'err');
+    }
+  }
+
+  async function runHappyPathFromMulti(cardId, action) {
+    try {
+      const r = await api.changeStatus(cardId, action.action);
+      const job = state.jobs.find(j => j.name === cardId);
+      if (job) job.status = r.status;
+      renderKanban();
+      api.stateCounts().then(c => { state.stateCounts = c; renderStateTabs(); });
+      toast(`Status: ${r.status}`, 'ok');
+      if (state.selectedId === cardId) openInspector(cardId);
+    } catch (e) {
+      toast('Status change failed: ' + extractError(e), 'err');
+    }
+  }
+
   function showDragMultiPopover(evt, cardId, customer, actions) {
-    console.warn('showDragMultiPopover not implemented yet');
-    revertSortableMove(evt);
+    const pop = $('#statusPopover');
+    if (!pop) {
+      revertSortableMove(evt);
+      toast('Popover not found', 'err');
+      return;
+    }
+    state.statusPopoverFor = cardId;
+
+    const r = evt.originalEvent && evt.originalEvent.changedTouches
+      ? evt.originalEvent.changedTouches[0]
+      : (evt.originalEvent || { clientX: window.innerWidth / 2, clientY: window.innerHeight / 2 });
+    const x = r.clientX ?? (window.innerWidth / 2);
+    const y = r.clientY ?? (window.innerHeight / 2);
+    pop.style.top = `${Math.min(y, window.innerHeight - 320)}px`;
+    pop.style.left = `${Math.min(x, window.innerWidth - 280)}px`;
+
+    $('#popList').innerHTML = `<div class="pop-label">Drag actions</div>` + actions.map(a => {
+      const s = STATUS_MAP[a.to] || { color: 'slate' };
+      return `<button class="pop-item" type="button" data-drag-action="${escapeHtml(a.action)}" data-drag-target="${escapeHtml(a.to)}">
+        <span class="pop-dot" style="background:var(--c-${s.color});"></span>
+        <span>${escapeHtml(a.to)}</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--text-faint);">${escapeHtml(a.action)}</span>
+      </button>`;
+    }).join('');
+    pop.classList.add('open');
+    if ($('#popSearch')) $('#popSearch').value = '';
+
+    function onPopClick(e) {
+      const item = e.target.closest('[data-drag-action]');
+      if (!item) return;
+      e.preventDefault();
+      e.stopPropagation();
+      pop.classList.remove('open');
+      pop.removeEventListener('click', onPopClick);
+      document.removeEventListener('keydown', onPopKey);
+      const action = item.dataset.dragAction;
+      const target = item.dataset.dragTarget;
+      const fakeAction = { action, to: target };
+      if (DESTRUCTIVE_STATUSES.has(target)) {
+        runDestructive(evt, cardId, customer, fakeAction);
+      } else {
+        runHappyPathFromMulti(cardId, fakeAction);
+      }
+    }
+    function onPopKey(e) {
+      if (e.key === 'Escape') {
+        pop.classList.remove('open');
+        pop.removeEventListener('click', onPopClick);
+        document.removeEventListener('keydown', onPopKey);
+      }
+    }
+    pop.addEventListener('click', onPopClick);
+    document.addEventListener('keydown', onPopKey);
   }
-  // Replaced by Task 25
+
   async function runDestructive(evt, cardId, customer, action) {
-    console.warn('runDestructive not implemented yet');
     revertSortableMove(evt);
+
+    const customerLabel = (customer || cardId).replace(/^DEMO\s*-\s*/i, '');
+    const confirmed = await showConfirmDialog({
+      title: `${action.action} ${customerLabel}?`,
+      desc: action.to === 'Closed'
+        ? 'This closes the job. It will no longer appear in the active pipeline.'
+        : `This marks the job as ${action.to} and closes it. It will no longer appear in the active pipeline.`,
+      okLabel: action.action,
+    });
+
+    if (!confirmed) return;
+
+    try {
+      const r = await api.changeStatus(cardId, action.action);
+      const job = state.jobs.find(j => j.name === cardId);
+      if (job) job.status = r.status;
+      renderKanban();
+      api.stateCounts().then(c => { state.stateCounts = c; renderStateTabs(); });
+      toast(`Status: ${r.status}`, 'ok');
+      if (state.selectedId === cardId) openInspector(cardId);
+    } catch (e) {
+      toast('Status change failed: ' + extractError(e), 'err');
+    }
   }
 
   // ---------------------------------------------------------------------------
