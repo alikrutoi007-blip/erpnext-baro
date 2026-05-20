@@ -360,6 +360,107 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Section 16b: SortableJS init + drag event handlers
+  // ---------------------------------------------------------------------------
+  let sortableInstances = [];
+  let activeSortableEvt = null;
+  let escCancelled = false;
+
+  function initDragDrop() {
+    sortableInstances.forEach(s => { try { s.destroy(); } catch (e) {} });
+    sortableInstances = [];
+
+    if (typeof Sortable === 'undefined') {
+      console.warn('Sortable global missing; drag/drop disabled');
+      return;
+    }
+
+    document.querySelectorAll('.baro-cockpit .kanban-col-body').forEach(colEl => {
+      const s = new Sortable(colEl, {
+        group: 'kanban',
+        handle: '.kc-handle',
+        draggable: '.kanban-card',
+        animation: 200,
+        ghostClass: 'kc-ghost',
+        dragClass: 'kc-dragging',
+        forceFallback: true,
+        fallbackOnBody: true,
+        fallbackTolerance: 4,
+        delay: 0,
+        delayOnTouchOnly: true,
+        touchStartThreshold: 4,
+        onStart: handleDragStart,
+        onMove: handleDragMove,
+        onEnd: handleDragEnd,
+      });
+      sortableInstances.push(s);
+    });
+  }
+
+  function handleDragStart(evt) {
+    activeSortableEvt = evt;
+    escCancelled = false;
+    document.body.classList.add('is-dragging');
+    const cardStatus = evt.item.dataset.status;
+    document.querySelectorAll('.baro-cockpit .kanban-col-body').forEach(col => {
+      const target = col.dataset.column;
+      const res = resolveDropAction(cardStatus, target);
+      if (res.kind === 'single' || res.kind === 'multi') {
+        col.classList.add('drop-valid');
+        col.setAttribute('data-empty-to', res.kind === 'single' ? res.action.action : 'choose action');
+      } else {
+        col.setAttribute('data-empty-from', cardStatus);
+      }
+    });
+    document.addEventListener('keydown', onEscDuringDrag);
+  }
+
+  function handleDragMove(evt) {
+    document.querySelectorAll('.baro-cockpit .kanban-col-body.drop-invalid-hover')
+      .forEach(c => c.classList.remove('drop-invalid-hover'));
+    if (evt.to && !evt.to.classList.contains('drop-valid')) {
+      evt.to.classList.add('drop-invalid-hover');
+    }
+    return evt.to ? evt.to.classList.contains('drop-valid') : true;
+  }
+
+  function handleDragEnd(evt) {
+    document.removeEventListener('keydown', onEscDuringDrag);
+    cleanupDragVisuals();
+    if (escCancelled) {
+      escCancelled = false;
+      activeSortableEvt = null;
+      return;
+    }
+    handleDropResolution(evt);
+    activeSortableEvt = null;
+  }
+
+  function onEscDuringDrag(e) {
+    if (e.key !== 'Escape' || !activeSortableEvt) return;
+    e.preventDefault();
+    e.stopPropagation();
+    escCancelled = true;
+    revertSortableMove(activeSortableEvt);
+    cleanupDragVisuals();
+  }
+
+  // Replaced by Task 23
+  function handleDropResolution(evt) {
+    console.warn('handleDropResolution not implemented yet');
+  }
+  // Replaced by Task 24
+  function showDragMultiPopover(evt, cardId, customer, actions) {
+    console.warn('showDragMultiPopover not implemented yet');
+    revertSortableMove(evt);
+  }
+  // Replaced by Task 25
+  async function runDestructive(evt, cardId, customer, action) {
+    console.warn('runDestructive not implemented yet');
+    revertSortableMove(evt);
+  }
+
+  // ---------------------------------------------------------------------------
   // 4. Render: full shell
   // ---------------------------------------------------------------------------
   function renderShell() {
@@ -674,6 +775,7 @@
         </div>
       `;
     }).join('');
+    initDragDrop();
   }
 
   // ---------------------------------------------------------------------------
