@@ -373,6 +373,10 @@
             </table>
           </div>
         </div>
+
+        <div class="kanban-wrap" id="kanbanView" style="display:none;" aria-hidden="true">
+          <div class="kanban" id="kanban"></div>
+        </div>
       </main>
 
       <div class="inspector-overlay" id="inspOverlay" aria-hidden="true"></div>
