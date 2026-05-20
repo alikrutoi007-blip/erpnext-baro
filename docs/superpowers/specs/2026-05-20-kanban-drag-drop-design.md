@@ -1,7 +1,7 @@
 # Kanban drag/drop in baro_crm cockpit — design
 
 Date: 2026-05-20
-Status: Pending final approval (four targeted patches applied 2026-05-20: asset smoke test fix, real-files instead of symlink, destructive test split, explicit Esc-cancel requirement).
+Status: **Shipped 2026-05-20.** All 4 automated install-time checks pass. All 12 of 14 desktop manual tests pass (tests 10–11 require iPad-class Safari and are deferred until tablet is available; see spec §11.2). Spec frozen — change requires new spec.
 Roadmap parent: `2026-05-19-baro-crm-roadmap.md` (sub-project E)
 Implementation target: `baro_crm` Frappe app
 Estimated effort: 1–2 days

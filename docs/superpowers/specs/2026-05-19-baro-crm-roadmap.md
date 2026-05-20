@@ -198,6 +198,8 @@ Repair Job custom field/section UX from `enhance_repair_job_experience.py` shoul
 
 ### Sub-project E · Kanban drag/drop in cockpit
 
+> **✓ Shipped 2026-05-20.** Spec: `2026-05-20-kanban-drag-drop-design.md` (Status: Shipped). Plan: `docs/superpowers/plans/2026-05-20-kanban-drag-drop.md`. All 4 automated checks + 12/14 desktop manual tests pass (tablet tests deferred pending iPad). SortableJS v1.15.6 vendored at `baro_crm/public/vendor/`. Git tag: `kanban-dnd-shipped`.
+
 **Status:** Not built. Smallest of the five.
 
 **Goal:** In the cockpit kanban view (already exists in `repair-job-workspace.html`), let users drag a card from one column to another to advance its workflow.
