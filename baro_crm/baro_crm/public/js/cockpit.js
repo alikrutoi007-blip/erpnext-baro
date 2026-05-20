@@ -566,6 +566,7 @@
       if (counts) state.stateCounts = counts;
       renderStateTabs();
       renderTable();
+      if (state.activeView === 'kanban') renderKanban();
     } catch (e) {
       console.error('loadAll failed', e);
       toast('Failed to load Repair Jobs. ' + (e.message || ''), 'err');
@@ -1137,6 +1138,28 @@
   // ---------------------------------------------------------------------------
   function bindEvents() {
     document.addEventListener('click', (e) => {
+      // View switch (List / Kanban) — handled first so other delegated cases below don't intercept
+      const viewBtn = e.target.closest('#viewSwitch button[data-view]');
+      if (viewBtn) {
+        document.querySelectorAll('#viewSwitch button').forEach(b => {
+          b.classList.remove('active');
+          b.setAttribute('aria-selected', 'false');
+        });
+        viewBtn.classList.add('active');
+        viewBtn.setAttribute('aria-selected', 'true');
+        state.activeView = viewBtn.dataset.view;
+        const list = $('#listView'), kan = $('#kanbanView');
+        if (state.activeView === 'kanban') {
+          if (list) list.style.display = 'none';
+          if (kan) { kan.style.display = ''; kan.setAttribute('aria-hidden', 'false'); }
+          renderKanban();
+        } else {
+          if (list) list.style.display = '';
+          if (kan) { kan.style.display = 'none'; kan.setAttribute('aria-hidden', 'true'); }
+        }
+        return;
+      }
+
       const stateTab = e.target.closest('.state-tab');
       if (stateTab) {
         state.activeState = stateTab.dataset.state;
@@ -1171,6 +1194,12 @@
 
       if (row && !e.target.closest('[data-stop]')) {
         openInspector(row.dataset.id);
+        return;
+      }
+
+      const card = e.target.closest('.kanban-card[data-id]');
+      if (card && !e.target.closest('[data-stop]')) {
+        openInspector(card.dataset.id);
         return;
       }
 
