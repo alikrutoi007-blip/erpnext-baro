@@ -132,6 +132,7 @@
     stateCounts: { All: 0, Texas: 0, Florida: 0, 'New York': 0, 'New Jersey': 0 },
     selectedId: null,
     activeState: 'All',
+    activeView: 'list',                  // NEW: 'list' or 'kanban'
     activeTab: 'overview',
     search: '',
     canWrite: false,
@@ -325,6 +326,16 @@
         <nav class="state-tabs" id="stateTabs" role="tablist" aria-label="Filter by service state"></nav>
 
         <div class="work-toolbar">
+          <div class="view-switch" id="viewSwitch" role="tablist" aria-label="View">
+            <button data-view="list" class="active" type="button" role="tab" aria-selected="true">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              List
+            </button>
+            <button data-view="kanban" type="button" role="tab" aria-selected="false">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="6" height="18" rx="1"/><rect x="10" y="3" width="6" height="12" rx="1"/><rect x="17" y="3" width="4" height="8" rx="1"/></svg>
+              Kanban
+            </button>
+          </div>
           <div class="filter-row">
             <button class="filter-chip" type="button" title="More filters coming">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Status
