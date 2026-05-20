@@ -137,8 +137,8 @@ body.baro-cockpit-page .page_content { padding: 0 !important; margin: 0 !importa
 .baro-cockpit .sidebar-footer .user-info small { color: var(--sidebar-text-muted); font-size: 11px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* -- 5. Main + topbar ------------------------------------------------------- */
-.baro-cockpit .main { display: flex; flex-direction: column; min-width: 0; background: var(--bg); }
-.baro-cockpit .topbar { display: flex; align-items: center; gap: 12px; padding: 14px 22px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.baro-cockpit .main { display: flex; flex-direction: column; min-width: 0; background: var(--bg); overflow-y: auto; overflow-x: hidden; }
+.baro-cockpit .topbar { display: flex; align-items: center; gap: 12px; padding: 14px 22px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 5; }
 .baro-cockpit .breadcrumb { display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 13px; }
 .baro-cockpit .breadcrumb strong { color: var(--text); font-weight: 600; font-size: 14.5px; }
 .baro-cockpit .breadcrumb .sep { color: var(--text-faint); }
