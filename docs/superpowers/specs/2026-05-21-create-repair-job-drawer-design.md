@@ -334,7 +334,11 @@ def _find_customers_by_phone(phone_norm):
     """, (phone_norm,))
     cust_ids.update(rj_customers)
 
-    if frappe.db.has_column('tabCustomer', 'normalized_phone'):
+    # Frappe v15: frappe.db.has_column(doctype, fieldname) — doctype is the
+    # DocType name (no "tab" prefix). Returns False for unknown columns instead
+    # of raising. Forward-compatible: K's migration adds Customer.normalized_phone,
+    # at which point this branch starts contributing.
+    if frappe.db.has_column('Customer', 'normalized_phone'):
         cust_ids.update(frappe.db.sql_list("""
             SELECT name FROM `tabCustomer` WHERE normalized_phone = %s
         """, (phone_norm,)))
@@ -539,6 +543,16 @@ def create_repair_job(payload):
     # Customer (no silent fuzzy)
     customer_id = _resolve_customer(payload, warnings)
 
+    # Contact — BEFORE the RJ so we can store contact on the RJ atomically.
+    # _ensure_customer_contact is idempotent and returns the Contact name
+    # (existing or newly created); None if nothing to link.
+    contact_id = None
+    if phone_norm and customer_id:
+        contact_id = _ensure_customer_contact(
+            customer_id, phone_norm,
+            first_name=(payload.get('contact_first_name') or None),
+        )
+
     # Address (cautious)
     address_id, address_text, needs_review = _resolve_address(payload, customer_id, warnings)
 
@@ -548,6 +562,7 @@ def create_repair_job(payload):
         'naming_series': 'RJ-.YYYY.-',
         'status': 'New',
         'customer': customer_id,
+        'contact': contact_id,            # NEW — populated when Contact was ensured
         'caller_phone': phone_norm,
         'business_phone_did': normalize_phone(payload.get('business_phone_did')),
         'area': (payload.get('area') or '').strip(),
@@ -562,11 +577,6 @@ def create_repair_job(payload):
         'internal_comment': (payload.get('internal_comment') or '').strip() or None,
     })
     doc.insert()
-
-    # Strengthen future dedup
-    if phone_norm and customer_id:
-        _ensure_customer_contact(customer_id, phone_norm,
-                                 first_name=(payload.get('contact_first_name') or None))
 
     return {
         'ok': True,
@@ -900,6 +910,32 @@ def main():
             assert 'no longer exists' in str(e) or 'does not exist' in str(e)
     check('bad customer_id rejected', t5)
 
+    # Discover a non-group Customer Group + Territory once. Mirrors what
+    # _get_default_customer_group / _get_default_territory do server-side.
+    # Required for direct frappe.client.insert of Customer (those fields are mandatory
+    # and Frappe refuses group-type values).
+    groups = call('frappe.client.get_list', {
+        'doctype': 'Customer Group',
+        'filters': [['is_group', '=', 0]],
+        'fields': ['name'],
+        'order_by': 'lft',
+        'limit_page_length': 1,
+    })
+    if not groups:
+        raise AssertionError('No non-group Customer Group available — cannot run T6 setup.')
+    SAFE_GROUP = groups[0]['name']
+
+    territories = call('frappe.client.get_list', {
+        'doctype': 'Territory',
+        'filters': [['is_group', '=', 0]],
+        'fields': ['name'],
+        'order_by': 'lft',
+        'limit_page_length': 1,
+    })
+    if not territories:
+        raise AssertionError('No non-group Territory available — cannot run T6 setup.')
+    SAFE_TERRITORY = territories[0]['name']
+
     # T6: phone multi-match refuses without force_create_new, succeeds with it
     def t6():
         test_phone = '+12125559099'   # unique to this run; cleaned up via prefix
@@ -910,11 +946,15 @@ def main():
             'doctype': 'Customer',
             'customer_name': f"{run_id} MultiMatch A",
             'customer_type': 'Company',
+            'customer_group': SAFE_GROUP,
+            'territory': SAFE_TERRITORY,
         }})['name']
         cust2 = call('frappe.client.insert', {'doc': {
             'doctype': 'Customer',
             'customer_name': f"{run_id} MultiMatch B",
             'customer_type': 'Company',
+            'customer_group': SAFE_GROUP,
+            'territory': SAFE_TERRITORY,
         }})['name']
         rj1 = call('baro_crm.api.repair_job.create_repair_job', {'payload': {
             'customer_id': cust1, 'caller_phone': test_phone,
@@ -956,23 +996,65 @@ def main():
         rj_name.append(r['name'])
     check('phone multi-match blocks; force_create_new bypasses', t6)
 
-    # Cleanup
+    # Cleanup — strict order: Repair Jobs first, then Contacts linked to test Customers,
+    # then Addresses linked to test Customers, then Customers themselves. Frappe blocks
+    # deletion of any parent that still has linked children, so order matters.
     if not args.keep:
         print("Cleaning up...")
+
+        # (1) Repair Jobs
         for name in rj_name:
             try:
-                client._request('DELETE',
-                                f'/api/resource/Repair Job/{name}')
+                client._request('DELETE', f'/api/resource/Repair Job/{name}')
                 print(f"  deleted RJ {name}")
             except Exception as e:
                 print(f"  cleanup warn: RJ {name}: {e}")
-        # Also delete the Customer records by name prefix
-        for cust in client.list_docs('Customer',
-                                      filters=[['name', 'like', f'%{run_id}%']],
-                                      fields=['name'], limit=50):
+
+        # Find the test Customers (by name prefix) so we can clean their children first
+        test_customers = client.list_docs(
+            'Customer',
+            filters=[['name', 'like', f'%{run_id}%']],
+            fields=['name'], limit=50,
+        )
+
+        # (2) Contacts linked to test Customers (via Dynamic Link)
+        for cust in test_customers:
+            linked = client.list_docs(
+                'Contact',
+                filters=[
+                    ['Dynamic Link', 'link_doctype', '=', 'Customer'],
+                    ['Dynamic Link', 'link_name', '=', cust['name']],
+                ],
+                fields=['name'], limit=20,
+            )
+            for c in linked:
+                try:
+                    client._request('DELETE', f'/api/resource/Contact/{c["name"]}')
+                    print(f"  deleted Contact {c['name']}")
+                except Exception as e:
+                    print(f"  cleanup warn: Contact {c['name']}: {e}")
+
+        # (3) Addresses linked to test Customers (same Dynamic Link pattern)
+        for cust in test_customers:
+            linked = client.list_docs(
+                'Address',
+                filters=[
+                    ['Dynamic Link', 'link_doctype', '=', 'Customer'],
+                    ['Dynamic Link', 'link_name', '=', cust['name']],
+                ],
+                fields=['name'], limit=20,
+            )
+            for a in linked:
+                try:
+                    client._request('DELETE', f'/api/resource/Address/{a["name"]}')
+                    print(f"  deleted Address {a['name']}")
+                except Exception as e:
+                    print(f"  cleanup warn: Address {a['name']}: {e}")
+
+        # (4) Customers last
+        for cust in test_customers:
             try:
-                client._request('DELETE',
-                                f'/api/resource/Customer/{cust["name"]}')
+                client._request('DELETE', f'/api/resource/Customer/{cust["name"]}')
                 print(f"  deleted Customer {cust['name']}")
             except Exception as e:
                 print(f"  cleanup warn: Customer {cust['name']}: {e}")
