@@ -1,7 +1,41 @@
 # Baro CRM Roadmap
 
-Date: 2026-05-19
+Date: 2026-05-19 · **Revised 2026-05-21**
 Status: Decomposition only. Each sub-project below gets its own design doc + plan before any code.
+
+---
+
+## Revision 2026-05-21 — expanded to 8 sub-projects
+
+Original roadmap had 5 sub-projects (A–E). E shipped 2026-05-20. During the F brainstorm on 2026-05-21, user surfaced two additional sub-projects (K, L) and confirmed the lead-intake architecture is status-based (no new DocType).
+
+**Final sub-project list (8 items), in execution order:**
+
+| # | ID | Sub-project | Effort | Status |
+|---|---|---|---|---|
+| 1 | F | **Create Repair Job drawer (in-cockpit) + minimal dedup pre-check** | 2–3 days | in flight (mid-brainstorm 2026-05-21) |
+| 2 | J | **ERPNext workspace integration** — cockpit added to main sidebar, default landing for `Baro Dispatcher` role profile | 0.5–1 day | pending |
+| 3 | G | **Views + city/state filters** — 10 named views (My Queue, Unassigned, Active, Today, Needs Follow-up, Production, Waiting Money, Warranty, Archive, Spam/Unrelated), city chip under state tabs | 2–3 days | pending |
+| 4 | K | **Existing Customer Migration** — bulk import 5–6k existing clients (Customer, Contact, Address; later Customer Equipment / history). New fields: `normalized_phone`, `legacy_customer_id`, `source_system`, `import_batch_id`, `duplicate_warning`, `service_state`, `city_area`. Dry-run first, chunks of 500–1000. **No auto-fuzzy-merge**; exact phone/email/name/address only, fuzzy matches become `duplicate_warning` flags. | 2–4 days | pending — blocks H and B |
+| 5 | H | **Full Dedup UX + Attach-to-existing flow** — Possible Match panel with `[Attach to existing RJ]` / `[Create new anyway]` buttons; backend `find_possible_matches(phone, name, address, equipment)`; UI for attaching a new call to an existing active RJ | 3–4 days | pending |
+| 6 | L | **Client Work Group + Teams Automation** — on `Diagnostics Paid` or `Technician Assigned`, create Project/Client Work Group if not already created. Add Dispatcher, Estimate Manager, Production Manager, Technician, Supply, Accounting, Regular Client Manager. Default ToDos/Tasks. Store back-reference on Repair Job (`client_group_project`, `client_work_group` — fields already exist). Teams sync is **phase 2**: create/update Teams chat/channel via Microsoft Graph / Power Automate / Make, store Teams link on RJ. See existing `docs/lead_group_automation.md`. | 2–4 days CRM + 2–4 days Teams | pending |
+| 7 | I | **Lead Intake architectural decision** — confirmed status-based 2026-05-21: `New` / `Need Follow-up` are intake (pre-qualification); `Diagnostics Offered` onward is qualified RJ; Spam/Unrelated/Lost are terminal pre-qual buckets. Implementation = formalizing views in G + Spam/Unrelated sidebar item. | ~1 day | pending — folds into G |
+| 8 | B | **Customer Chart page** at `/customers/<id>` — all calls, SMS, RJs, invoices, warranties, addresses, equipment, notes for one customer. Source of truth for repeat customers. | 3–5 days | pending — best after K loads real history |
+
+**Sub-projects shipped before this revision:**
+
+- A (Sheets→ERPNext ingest) — script exists at `scripts/ingest_sheet_to_erpnext.py`; first real RJ produced (RJ-2026-00001). Needs production hardening (separate from F).
+- C (Executive insights wiring) — static mockup at `crm-prototype/executive-insights.html`; not yet wired to live data. Deferred to post-Customer-Chart (B).
+- D (Production hardening + backups) — not done. Independent track. Should happen alongside, not after.
+- ~~E~~ (Kanban drag/drop) — **✓ Shipped 2026-05-20.** See `2026-05-20-kanban-drag-drop-design.md`.
+
+**For F specifically (2026-05-21 scope decision):**
+
+- Drawer itself + audit polish (status popover bug fix, `extractError`, focus trap helper, kanbanCardHtml/renderRow extraction, `state.jobsById` map)
+- **Minimal dedup pre-check only**: warning banner if normalized phone matches existing Customer/Contact OR if active RJ exists for same customer/phone/equipment within recent window. Buttons: `[Open existing]` / `[Create anyway]`. No fuzzy auto-link, no merge, no attach flow — those belong to H.
+- Scale handling: kanban columns natural height (no internal scroll), sticky column heads, page-level scroll, API limit raised to 500 default / 2000 max, "Load more" affordance, `state.jobsById` map.
+
+---
 
 ## Why this doc exists
 
