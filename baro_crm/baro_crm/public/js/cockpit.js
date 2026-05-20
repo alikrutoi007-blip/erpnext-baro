@@ -502,6 +502,57 @@
   }
 
   // ---------------------------------------------------------------------------
+  // 6b. Kanban view
+  // ---------------------------------------------------------------------------
+  function renderKanban() {
+    const kanban = $('#kanban');
+    if (!kanban) return;
+    const cols = [
+      { title: 'Intake',        keys: ['New','Need Follow-up'] },
+      { title: 'Sales',         keys: ['Diagnostics Offered','Waiting Prepayment','Diagnostics Paid','Estimate Sent','Waiting Client Approval'] },
+      { title: 'Production',    keys: ['Technician Assigned','Diagnostics In Progress','Diagnosis Completed','Parts Needed','Repair In Progress','Repair Completed'] },
+      { title: 'Money & Care',  keys: ['Invoice Sent','Paid','Warranty Active','Closed'] },
+      { title: 'Out',           keys: ['Lost','Spam','Unrelated'] },
+    ];
+    kanban.innerHTML = cols.map(col => {
+      const items = state.jobs.filter(j => col.keys.includes(j.status));
+      const dotColor = STATUS_MAP[col.keys[0]]?.color || 'slate';
+      return `
+        <div class="kanban-col">
+          <div class="kanban-col-head">
+            <span class="kc-dot" style="background:var(--c-${dotColor});" aria-hidden="true"></span>
+            <span class="kc-name">${escapeHtml(col.title)}</span>
+            <span class="kc-count">${items.length}</span>
+          </div>
+          <div class="kanban-col-body" data-column="${escapeHtml(col.title)}">
+            ${items.map(j => {
+              const s = STATUS_MAP[j.status] || { color: 'slate' };
+              const customerLabel = (j.customer || '').replace(/^DEMO\s*-\s*/i, '');
+              return `
+                <div class="kanban-card" data-id="${escapeHtml(j.name)}" data-status="${escapeHtml(j.status)}">
+                  <div class="kc-id">${escapeHtml(j.name)}</div>
+                  <div class="kc-title">${escapeHtml(customerLabel || j.name)}</div>
+                  <div class="kc-meta">
+                    <span class="status-pill s-${s.color}"><span class="dot" aria-hidden="true"></span>${escapeHtml(j.status)}</span>
+                  </div>
+                  <div class="kc-meta" style="margin-top:6px;">
+                    ${escapeHtml(j.equipment_type || '—')} • ${escapeHtml(j.service_state || j.area || '—')}
+                  </div>
+                  <div class="kc-foot">
+                    ${j.technician
+                      ? `<div class="avatar ${colorClass(j.technician)}" aria-hidden="true">${escapeHtml(initials(j.technician))}</div><span style="font-size:11.5px;color:var(--text-muted);">${escapeHtml(j.technician)}</span>`
+                      : `<span style="font-size:11px;color:var(--text-faint);font-style:italic;">Unassigned</span>`}
+                    <small>${escapeHtml(formatRelativeTime(j.modified))}</small>
+                  </div>
+                </div>`;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // ---------------------------------------------------------------------------
   // 7. Data loading
   // ---------------------------------------------------------------------------
   async function loadAll({ refreshCounts = true } = {}) {
