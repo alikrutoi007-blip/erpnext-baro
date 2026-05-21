@@ -410,11 +410,15 @@ def get_boot_context():
     }
 
 
+TERMINAL_STATUSES = ["Closed", "Lost", "Spam", "Unrelated"]
+
+
 @frappe.whitelist()
 def get_jobs(state=None, status=None, search=None,
-             limit=500, offset=0, date_from=None):
+             limit=500, offset=0, date_from=None, scope="active", city=None):
     """Paginated list. Returns {jobs, offset, limit, total?, has_more}.
-    total is None when search is active (frappe.db.count doesn't honor or_filters)."""
+    total is None when search is active (frappe.db.count doesn't honor or_filters).
+    scope: 'active' (default) excludes terminal statuses; 'all' includes them."""
     try:
         limit = max(1, min(int(limit), 2000))
     except (TypeError, ValueError):
@@ -424,13 +428,17 @@ def get_jobs(state=None, status=None, search=None,
     except (TypeError, ValueError):
         offset = 0
 
-    filters = {}
+    filters = []
     if state and state != "All":
-        filters["service_state"] = state
+        filters.append(["service_state", "=", state])
     if status:
-        filters["status"] = status
+        filters.append(["status", "=", status])
     if date_from:
-        filters["call_datetime"] = [">=", date_from]
+        filters.append(["call_datetime", ">=", date_from])
+    if city:
+        filters.append(["area", "=", city])
+    if scope == "active" and not status:
+        filters.append(["status", "not in", TERMINAL_STATUSES])
 
     or_filters = None
     if search:
@@ -464,6 +472,19 @@ def get_jobs(state=None, status=None, search=None,
         result["total"] = total
         result["has_more"] = (offset + len(rows)) < total
     return result
+
+
+@frappe.whitelist()
+def get_filter_options():
+    """Lightweight payload for the cockpit filter chips: distinct cities (area)
+    and any other future option lists. States are static so we don't ship them."""
+    rows = frappe.db.sql(
+        """SELECT DISTINCT area FROM `tabRepair Job`
+           WHERE area IS NOT NULL AND area != ''
+           ORDER BY area ASC LIMIT 200""",
+        as_dict=True,
+    )
+    return {"cities": [r["area"] for r in rows]}
 
 
 @frappe.whitelist()

@@ -160,6 +160,12 @@
     statusPopoverTrigger: null,
     timelineRefreshTimer: null,
     inspectorTrapUninstall: null,
+    scope: 'active',          // 'active' (default) | 'all'
+    city: '',                 // empty = no filter
+    cities: [],               // populated from filterOptions()
+    pageLimit: 500,
+    jobsHasMore: false,
+    jobsTotal: null,
   };
 
   // O(1) lookup helper — keep state.jobs and state.jobsById in sync via setJobs()
@@ -265,6 +271,7 @@
     bootContext: () => call('baro_crm.api.repair_job.get_boot_context'),
     getJobs: (filters = {}) => call('baro_crm.api.repair_job.get_jobs', filters),
     stateCounts: () => call('baro_crm.api.repair_job.get_state_counts'),
+    filterOptions: () => call('baro_crm.api.repair_job.get_filter_options'),
     timeline: (repair_job) => call('baro_crm.api.repair_job.get_timeline', { repair_job }),
     addComment: (repair_job, content) => call('baro_crm.api.repair_job.add_comment', { repair_job, content }),
     setField: (repair_job, fieldname, value) => call('baro_crm.api.repair_job.set_field', { repair_job, fieldname, value }),
@@ -740,12 +747,18 @@
             </button>
           </div>
           <div class="filter-row">
-            <button class="filter-chip" type="button" title="More filters coming">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Status
+            <button class="filter-chip is-toggle is-on" id="scopeChip" type="button" aria-pressed="true" title="Hide Closed / Lost / Spam / Unrelated">
+              <span class="chip-dot" aria-hidden="true"></span> Active only
             </button>
-            <button class="filter-chip" type="button"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Technician</button>
-            <button class="filter-chip" type="button"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Marketing source</button>
-            <button class="filter-chip" type="button"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Date range</button>
+            <label class="filter-chip filter-chip-select" title="Filter by city / area">
+              <span>City</span>
+              <select id="cityFilter">
+                <option value="">All cities</option>
+              </select>
+            </label>
+            <button class="filter-chip" type="button" disabled title="Coming soon">Technician</button>
+            <button class="filter-chip" type="button" disabled title="Coming soon">Marketing source</button>
+            <button class="filter-chip" type="button" disabled title="Coming soon">Date range</button>
           </div>
         </div>
 
@@ -780,6 +793,8 @@
         <div class="kanban-wrap" id="kanbanView" style="display:none;" aria-hidden="true">
           <div class="kanban" id="kanban"></div>
         </div>
+
+        <div id="kanbanLoadMoreWrap"></div>
       </main>
 
       <div class="inspector-overlay" id="inspOverlay" aria-hidden="true"></div>
@@ -950,28 +965,21 @@
   function kanbanCardHtml(j) {
     const s = STATUS_MAP[j.status] || { color: 'slate' };
     const customerLabel = (j.customer || '').replace(/^DEMO\s*-\s*/i, '');
+    const urgencyCls = (j.urgency || 'Unknown').replace(/\s+/g, '-');
     return `
       <div class="kanban-card" data-id="${escapeHtml(j.name)}" data-status="${escapeHtml(j.status)}">
         <span class="kc-handle" data-stop aria-label="Drag ${escapeHtml(customerLabel || j.name)}" title="Drag to move" tabindex="-1">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <circle cx="9" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/>
             <circle cx="15" cy="6" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
           </svg>
         </span>
         <div class="kc-body">
-          <div class="kc-id">${escapeHtml(j.name)}</div>
-          <div class="kc-title">${escapeHtml(customerLabel || j.name)}</div>
-          <div class="kc-meta">
+          <div class="kc-title" title="${escapeHtml(customerLabel || j.name)}">${escapeHtml(customerLabel || j.name)}</div>
+          <div class="kc-row">
+            <span class="urg ${escapeHtml(urgencyCls)}" aria-hidden="true"></span>
             <span class="status-pill s-${s.color}" data-stop><span class="dot" aria-hidden="true"></span>${escapeHtml(j.status)}</span>
-          </div>
-          <div class="kc-meta" style="margin-top:6px;">
-            ${escapeHtml(j.equipment_type || '—')} • ${escapeHtml(j.service_state || j.area || '—')}
-          </div>
-          <div class="kc-foot">
-            ${j.technician
-              ? `<div class="avatar ${colorClass(j.technician)}" aria-hidden="true">${escapeHtml(initials(j.technician))}</div><span style="font-size:11.5px;color:var(--text-muted);">${escapeHtml(j.technician)}</span>`
-              : `<span style="font-size:11px;color:var(--text-faint);font-style:italic;">Unassigned</span>`}
-            <small>${escapeHtml(formatRelativeTime(j.modified))}</small>
+            <span class="kc-when">${escapeHtml(formatRelativeTime(j.modified))}</span>
           </div>
         </div>
       </div>`;
@@ -982,13 +990,18 @@
   // ---------------------------------------------------------------------------
   async function loadAll({ refreshCounts = true } = {}) {
     try {
-      const args = { state: state.activeState, search: state.search };
+      const args = {
+        state: state.activeState,
+        search: state.search,
+        scope: state.scope,
+        city: state.city || null,
+        limit: state.pageLimit,
+        offset: 0,
+      };
       const [res, counts] = await Promise.all([
         api.getJobs(args),
         refreshCounts ? api.stateCounts() : Promise.resolve(state.stateCounts),
       ]);
-      // get_jobs now returns {jobs, offset, limit, total?, has_more}.
-      // Tolerate legacy bare-array responses in case of an older backend.
       const jobs = Array.isArray(res) ? res : (res && res.jobs) || [];
       setJobs(jobs);
       state.jobsHasMore = !!(res && res.has_more);
@@ -996,15 +1009,55 @@
       if (counts) state.stateCounts = counts;
       renderStateTabs();
       renderTable();
+      renderLoadMore();
       if (state.activeView === 'kanban') renderKanban();
-      if (state.jobsHasMore) {
-        const totalTxt = state.jobsTotal != null ? ` of ${state.jobsTotal}` : '';
-        toast(`Showing first ${state.jobs.length}${totalTxt} jobs. Refine your filter to narrow results.`, 'warn');
-      }
     } catch (e) {
       console.error('loadAll failed', e);
       toast('Failed to load Repair Jobs. ' + extractError(e), 'err');
     }
+  }
+
+  async function loadMore() {
+    const btn = $('#kanbanLoadMore');
+    if (btn) btn.disabled = true;
+    try {
+      const args = {
+        state: state.activeState,
+        search: state.search,
+        scope: state.scope,
+        city: state.city || null,
+        limit: state.pageLimit,
+        offset: state.jobs.length,
+      };
+      const res = await api.getJobs(args);
+      const more = Array.isArray(res) ? res : (res && res.jobs) || [];
+      const merged = state.jobs.concat(more);
+      setJobs(merged);
+      state.jobsHasMore = !!(res && res.has_more);
+      state.jobsTotal = (res && typeof res.total === 'number') ? res.total : state.jobsTotal;
+      renderTable();
+      renderLoadMore();
+      if (state.activeView === 'kanban') renderKanban();
+    } catch (e) {
+      toast('Load more failed: ' + extractError(e), 'err');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  function renderLoadMore() {
+    const host = $('#kanbanLoadMoreWrap');
+    if (!host) return;
+    if (!state.jobsHasMore) { host.innerHTML = ''; return; }
+    const remaining = state.jobsTotal != null ? Math.max(0, state.jobsTotal - state.jobs.length) : null;
+    const label = remaining != null
+      ? `Load more (${remaining} remaining)`
+      : `Load more`;
+    host.innerHTML = `
+      <div class="load-more-bar">
+        <div class="load-more-info">Showing ${state.jobs.length}${state.jobsTotal != null ? ` of ${state.jobsTotal}` : ''}</div>
+        <button id="kanbanLoadMore" type="button" class="btn">${escapeHtml(label)}</button>
+      </div>`;
   }
 
   // ---------------------------------------------------------------------------
@@ -1637,6 +1690,22 @@
         return;
       }
 
+      const scopeChip = e.target.closest('#scopeChip');
+      if (scopeChip) {
+        state.scope = state.scope === 'active' ? 'all' : 'active';
+        const on = state.scope === 'active';
+        scopeChip.classList.toggle('is-on', on);
+        scopeChip.setAttribute('aria-pressed', on ? 'true' : 'false');
+        scopeChip.firstElementChild.nextSibling.textContent = on ? ' Active only' : ' All jobs';
+        loadAll({ refreshCounts: false });
+        return;
+      }
+
+      if (e.target.closest('#kanbanLoadMore')) {
+        loadMore();
+        return;
+      }
+
       const statusBtn = e.target.closest('[data-status-btn]');
       const row = e.target.closest('tr[data-id]');
       if (statusBtn) {
@@ -1725,6 +1794,14 @@
       }
     });
 
+    // City filter
+    document.addEventListener('change', (e) => {
+      if (e.target && e.target.id === 'cityFilter') {
+        state.city = e.target.value || '';
+        loadAll({ refreshCounts: false });
+      }
+    });
+
     // Search
     const searchInp = $('#search');
     let searchTimer = null;
@@ -1782,6 +1859,16 @@
     renderShell();
     bindEvents();
     setupRealtime();
+    // Fire filter options + initial jobs in parallel; cities are non-blocking.
+    api.filterOptions().then(opts => {
+      state.cities = (opts && opts.cities) || [];
+      const sel = $('#cityFilter');
+      if (sel) {
+        const current = state.city;
+        sel.innerHTML = '<option value="">All cities</option>'
+          + state.cities.map(c => `<option value="${escapeHtml(c)}"${c === current ? ' selected' : ''}>${escapeHtml(c)}</option>`).join('');
+      }
+    }).catch(e => console.warn('filterOptions failed', e));
     await loadAll();
   }
 

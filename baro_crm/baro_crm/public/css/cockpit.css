@@ -205,6 +205,19 @@ body.baro-cockpit-page .page_content { padding: 0 !important; margin: 0 !importa
 .baro-cockpit .filter-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; background: var(--surface); border: 1px dashed var(--border-strong); font-size: 12.5px; color: var(--text-muted); transition: all .15s; }
 .baro-cockpit .filter-chip:hover { border-color: var(--brand); color: var(--text); background: var(--brand-50); }
 .baro-cockpit .filter-chip.active { border-style: solid; background: var(--brand-50); color: var(--brand-700); border-color: var(--brand-100); }
+.baro-cockpit .filter-chip:disabled { opacity: 0.5; cursor: not-allowed; }
+.baro-cockpit .filter-chip.is-toggle { cursor: pointer; border-style: solid; }
+.baro-cockpit .filter-chip.is-toggle .chip-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-faint); transition: background .15s; }
+.baro-cockpit .filter-chip.is-toggle.is-on { background: var(--brand-50); color: var(--brand-700); border-color: var(--brand-100); }
+.baro-cockpit .filter-chip.is-toggle.is-on .chip-dot { background: #16a34a; }
+.baro-cockpit .filter-chip-select { padding: 2px 4px 2px 10px; cursor: default; }
+.baro-cockpit .filter-chip-select > span { font-size: 12px; color: var(--text-muted); }
+.baro-cockpit .filter-chip-select select { border: 0; background: transparent; font-size: 12.5px; color: var(--text); padding: 4px 6px; cursor: pointer; outline: none; max-width: 180px; }
+.baro-cockpit .filter-chip-select select:focus { box-shadow: inset 0 0 0 2px var(--brand-100); border-radius: 6px; }
+
+/* -- Load more bar -- */
+.baro-cockpit .load-more-bar { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 16px 22px 26px; }
+.baro-cockpit .load-more-bar .load-more-info { font-size: 12px; color: var(--text-muted); }
 
 /* -- 9. Table -------------------------------------------------------------- */
 .baro-cockpit .work-table-wrap { margin: 0 22px 22px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; flex: 1; display: flex; flex-direction: column; min-height: 0; }
@@ -444,28 +457,21 @@ body.baro-cockpit-page .page_content { padding: 0 !important; margin: 0 !importa
 .baro-cockpit .view-switch button { display: inline-flex; align-items: center; gap: 4px; }
 
 /* -- 20. Kanban view -- */
-.baro-cockpit .kanban-wrap { flex: 1; overflow-x: auto; overflow-y: hidden; padding: 0 22px 22px; }
-.baro-cockpit .kanban { display: flex; gap: 12px; height: 100%; padding-bottom: 4px; }
-.baro-cockpit .kanban-col { width: 290px; flex-shrink: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); display: flex; flex-direction: column; max-height: 100%; }
-.baro-cockpit .kanban-col-head { padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+/* Page-level vertical scroll: kanban grows with content; .main is the only y-scroll container */
+.baro-cockpit .kanban-wrap { overflow-x: auto; overflow-y: visible; padding: 0 22px 22px; }
+.baro-cockpit .kanban { display: flex; gap: 12px; align-items: flex-start; padding-bottom: 4px; }
+.baro-cockpit .kanban-col { width: 290px; flex-shrink: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); display: flex; flex-direction: column; }
+.baro-cockpit .kanban-col-head { padding: 10px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; background: var(--surface-2); position: sticky; top: 0; z-index: 2; border-top-left-radius: var(--radius); border-top-right-radius: var(--radius); }
 .baro-cockpit .kanban-col-head .kc-dot { width: 8px; height: 8px; border-radius: 50%; }
 .baro-cockpit .kanban-col-head .kc-name { font-size: 12.5px; font-weight: 600; color: var(--text); }
 .baro-cockpit .kanban-col-head .kc-count { margin-left: auto; font-size: 11.5px; color: var(--text-muted); background: var(--surface); padding: 1px 7px; border-radius: 10px; }
-.baro-cockpit .kanban-col-body { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 8px; min-height: 40px; }
-.baro-cockpit .kanban-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; cursor: pointer; transition: border-color .12s, box-shadow .12s, transform .12s; }
+/* No internal column scroll — the page scrolls. Body grows to its natural height. */
+.baro-cockpit .kanban-col-body { padding: 8px; display: flex; flex-direction: column; gap: 6px; min-height: 40px; }
+.baro-cockpit .kanban-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; transition: border-color .12s, box-shadow .12s, transform .12s; display: flex; align-items: stretch; padding: 0; overflow: hidden; }
 .baro-cockpit .kanban-card:hover { border-color: var(--brand); box-shadow: var(--shadow); transform: translateY(-1px); }
-.baro-cockpit .kanban-card .kc-id { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
-.baro-cockpit .kanban-card .kc-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; line-height: 1.3; }
-.baro-cockpit .kanban-card .kc-meta { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-muted); flex-wrap: wrap; }
-.baro-cockpit .kanban-card .kc-foot { display: flex; align-items: center; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
-.baro-cockpit .kanban-card .kc-foot .avatar { width: 20px; height: 20px; font-size: 9px; }
-.baro-cockpit .kanban-card .kc-foot small { color: var(--text-muted); font-size: 11px; margin-left: auto; }
-
-/* -- 21. Drag handle + card body layout -- */
-.baro-cockpit .kanban-card { display: flex; align-items: stretch; padding: 0; overflow: hidden; }
 .baro-cockpit .kanban-card .kc-handle {
   display: flex; align-items: center; justify-content: center;
-  width: 22px; flex-shrink: 0;
+  width: 18px; flex-shrink: 0;
   color: var(--text-faint);
   background: var(--surface-2);
   border-right: 1px solid var(--border);
@@ -475,7 +481,17 @@ body.baro-cockpit-page .page_content { padding: 0 !important; margin: 0 !importa
 }
 .baro-cockpit .kanban-card .kc-handle:hover { color: var(--text-muted); background: var(--brand-50); }
 .baro-cockpit .kanban-card .kc-handle:active { cursor: grabbing; }
-.baro-cockpit .kanban-card .kc-body { flex: 1; padding: 10px 12px; min-width: 0; }
+.baro-cockpit .kanban-card .kc-body { flex: 1; padding: 7px 9px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.baro-cockpit .kanban-card .kc-title { font-size: 12.5px; font-weight: 600; color: var(--text); line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.baro-cockpit .kanban-card .kc-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); min-width: 0; }
+.baro-cockpit .kanban-card .kc-row .kc-when { margin-left: auto; color: var(--text-faint); font-size: 10.5px; white-space: nowrap; }
+.baro-cockpit .kanban-card .kc-row .status-pill { padding: 1px 7px; font-size: 10.5px; }
+.baro-cockpit .kanban-card .kc-row .urg { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--text-faint); }
+.baro-cockpit .kanban-card .kc-row .urg.Emergency { background: var(--c-rose); box-shadow: 0 0 0 3px rgba(225,29,72,0.12); }
+.baro-cockpit .kanban-card .kc-row .urg.Today { background: var(--c-rose); }
+.baro-cockpit .kanban-card .kc-row .urg.This-Week { background: var(--c-amber); }
+.baro-cockpit .kanban-card .kc-row .urg.Scheduled { background: var(--c-slate); }
+.baro-cockpit .kanban-card .kc-row .urg.Unknown { background: var(--text-faint); }
 
 /* -- 22. Drag visual states (toggled by SortableJS handlers in Phase D) -- */
 .baro-cockpit .kanban-card.kc-ghost { opacity: 0.35; pointer-events: none; }
