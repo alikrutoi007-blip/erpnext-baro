@@ -166,6 +166,13 @@
     pageLimit: 500,
     jobsHasMore: false,
     jobsTotal: null,
+    createOpen: false,
+    createDraft: null,
+    createDedupWarnings: null,
+    createForceNew: false,
+    createSubmitting: false,
+    createTrapUninstall: null,
+    customerLookupCache: new Map(),
   };
 
   // O(1) lookup helper — keep state.jobs and state.jobsById in sync via setJobs()
@@ -726,10 +733,11 @@
             <button class="btn btn-ghost btn-icon" id="btnRefresh" title="Refresh" aria-label="Refresh">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
             </button>
-            <a class="btn btn-primary" href="/app/repair-job/new?status=New" target="_blank" rel="noopener">
+            <button class="btn btn-primary" type="button" id="btnOpenCreateDrawer">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               New Repair Job
-            </a>
+            </button>
+            <a class="btn btn-ghost" href="/app/repair-job/new" target="_blank" rel="noopener" title="Open ERPNext form (advanced)" style="font-size:11.5px;color:var(--text-faint);margin-left:4px;">⤴</a>
           </div>
         </header>
 
@@ -841,6 +849,29 @@
         <div class="insp-body" id="inspBody" role="tabpanel"></div>
       </aside>
 
+      <aside class="create-drawer" id="createDrawer" role="dialog" aria-modal="true" aria-labelledby="createDrawerTitle" aria-hidden="true" tabindex="-1">
+        <div class="insp-head">
+          <div class="col-main">
+            <div class="insp-id">New Repair Job</div>
+            <h2 id="createDrawerTitle">Create a Repair Job</h2>
+            <div class="insp-meta">
+              <span>Required fields are marked *</span>
+            </div>
+          </div>
+          <button class="insp-close" id="createDrawerClose" aria-label="Close drawer" title="Close (Esc)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="insp-body" id="createDrawerBody">
+          <div id="dedupBanners"></div>
+          <form id="createRepairJobForm" autocomplete="off" novalidate></form>
+        </div>
+        <div class="insp-actionbar">
+          <button class="btn btn-outline" type="button" id="btnCreateCancel">Cancel</button>
+          <button class="btn btn-primary" type="button" id="btnCreateSubmit" disabled>Create Repair Job</button>
+        </div>
+      </aside>
+
       <div class="popover" id="statusPopover" role="listbox" aria-label="Change status">
         <label for="popSearch" class="sr-only">Search status</label>
         <input type="text" class="pop-search" placeholder="Search status…" id="popSearch">
@@ -878,7 +909,17 @@
     $('#totalCount').textContent = state.stateCounts.All ?? state.jobs.length;
 
     if (!state.jobs.length) {
-      tbody.innerHTML = `<tr><td colspan="9"><div class="empty-table"><strong>No Repair Jobs in this view</strong>${state.activeState !== 'All' ? `<div>Try a different state tab or "All".</div>` : '<div>When calls arrive from Zadarma, they will appear here.</div>'}</div></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9">
+        <div class="empty-table">
+          <strong>No Repair Jobs in this view</strong>
+          ${state.activeState !== 'All'
+            ? '<div>Try a different state tab or "All".</div>'
+            : '<div>When calls arrive from Zadarma, they will appear here.</div>'}
+          <div class="empty-actions">
+            <button type="button" class="btn btn-primary" id="btnOpenCreateDrawerFromEmpty">+ Create Repair Job</button>
+          </div>
+        </div>
+      </td></tr>`;
       return;
     }
 
@@ -1068,6 +1109,7 @@
   async function openInspector(id) {
     const j = jobById(id);
     if (!j) return;
+    if (state.createOpen) closeCreateDrawer({ force: true });
     if (!state.selectedId) lastFocusedBeforeInspector = document.activeElement;
     state.selectedId = id;
 
@@ -1765,9 +1807,31 @@
         return;
       }
 
-      if (e.target.closest('#inspOverlay') && !e.target.closest('.inspector')) {
-        closeInspector();
+      if (e.target.closest('#btnOpenCreateDrawer') || e.target.closest('#btnOpenCreateDrawerFromEmpty')) {
+        openCreateDrawer();
         return;
+      }
+      if (e.target.closest('#createDrawerClose') || e.target.closest('#btnCreateCancel')) {
+        closeCreateDrawer();
+        return;
+      }
+      if (e.target.closest('#btnCreateSubmit')) {
+        submitCreateRepairJob();
+        return;
+      }
+
+      if (e.target.closest('#inspOverlay')
+          && !e.target.closest('.inspector')
+          && !e.target.closest('.create-drawer')) {
+        if (state.createOpen) closeCreateDrawer();
+        else closeInspector();
+        return;
+      }
+
+      // Close customer typeahead panel on outside click
+      if (!e.target.closest('#cr_customer_panel') && !e.target.closest('#cr_customer')) {
+        const panel = $('#cr_customer_panel');
+        if (panel) panel.classList.remove('open');
       }
 
       const advanceBtn = e.target.closest('#btnAdvance');
@@ -1827,6 +1891,7 @@
         searchInp.select();
       }
       if (e.key === 'Escape') {
+        if (state.createOpen) { closeCreateDrawer(); return; }
         closeStatusPopover();
         if ($('#inspector').classList.contains('open')) closeInspector();
       }
@@ -1840,6 +1905,473 @@
       }
     });
   }
+
+  // ---------------------------------------------------------------------------
+  // Section 18: Create Repair Job drawer
+  // ---------------------------------------------------------------------------
+  function openCreateDrawer() {
+    if (state.selectedId) closeInspector();
+    state.createOpen = true;
+    state.createDraft = { force_create_new: false };
+    state.createForceNew = false;
+    state.createDedupWarnings = null;
+    state.createSubmitting = false;
+    renderCreateForm();
+    renderDedupBanners();
+    const drawer = $('#createDrawer');
+    drawer.classList.add('open');
+    drawer.setAttribute('aria-hidden', 'false');
+    $('#inspOverlay').classList.add('open');
+    if (state.createTrapUninstall) state.createTrapUninstall();
+    state.createTrapUninstall = installFocusTrap(drawer, {
+      initialFocus: drawer.querySelector('input[name="customer_name"]') || $('#createDrawerClose'),
+    });
+    const btn = $('#btnOpenCreateDrawer');
+    if (btn) btn.disabled = true;
+  }
+
+  function closeCreateDrawer({ force = false } = {}) {
+    if (!state.createOpen) return;
+    if (!force && createDirty()) {
+      showConfirmDialog({
+        title: 'Discard new Repair Job?',
+        desc: 'Your changes will be lost.',
+        okLabel: 'Discard',
+      }).then(ok => { if (ok) closeCreateDrawer({ force: true }); });
+      return;
+    }
+    state.createOpen = false;
+    state.createDraft = null;
+    state.createDedupWarnings = null;
+    state.createForceNew = false;
+    const drawer = $('#createDrawer');
+    drawer.classList.remove('open');
+    drawer.setAttribute('aria-hidden', 'true');
+    if (!state.selectedId) $('#inspOverlay').classList.remove('open');
+    if (state.createTrapUninstall) {
+      state.createTrapUninstall();
+      state.createTrapUninstall = null;
+    }
+    const btn = $('#btnOpenCreateDrawer');
+    if (btn) btn.disabled = false;
+  }
+
+  function createDirty() {
+    const d = state.createDraft || {};
+    return !!(d.customer_name || d.caller_phone || d.equipment_type
+              || d.symptom || d.service_address || d.internal_comment
+              || d.service_state || d.urgency
+              || d.business_phone_did || d.marketing_source
+              || d.area);
+  }
+
+  function renderCreateForm() {
+    const f = $('#createRepairJobForm');
+    if (!f) return;
+    const d = state.createDraft || {};
+    const lockedCustomer = !!d.customer_id;
+
+    f.innerHTML = `
+      <div class="field-row" data-field="customer">
+        <label for="cr_customer">Customer <span class="required-mark">*</span></label>
+        <div class="typeahead-host">
+          ${lockedCustomer ? `
+            <div class="typeahead-locked">
+              <span>✓ ${escapeHtml(d.customer_name || d.customer_id)}</span>
+              <button type="button" class="unlock" id="cr_customer_unlock" aria-label="Unlock and re-search">×</button>
+            </div>
+          ` : `
+            <input type="text" id="cr_customer" name="customer_name" value="${escapeHtml(d.customer_name || '')}" placeholder="Type business name…" autocomplete="off">
+            <div class="typeahead-panel" id="cr_customer_panel" role="listbox"></div>
+          `}
+        </div>
+        <div class="field-error" id="err_customer" style="display:none;">Required</div>
+      </div>
+
+      <div class="field-row" data-field="caller_phone">
+        <label for="cr_phone">Caller phone <span class="required-mark">*</span></label>
+        <input type="tel" id="cr_phone" name="caller_phone" value="${escapeHtml(d.caller_phone || '')}" placeholder="+1 212 555 0101 — any format">
+        <div class="field-error" id="err_caller_phone" style="display:none;">Required</div>
+      </div>
+
+      <div class="field-row" data-field="service_state">
+        <label for="cr_state">Service state <span class="required-mark">*</span></label>
+        <select id="cr_state" name="service_state">
+          <option value="">— pick —</option>
+          <option value="Texas"     ${d.service_state === 'Texas' ? 'selected' : ''}>Texas</option>
+          <option value="Florida"   ${d.service_state === 'Florida' ? 'selected' : ''}>Florida</option>
+          <option value="New York"  ${d.service_state === 'New York' ? 'selected' : ''}>New York</option>
+          <option value="New Jersey" ${d.service_state === 'New Jersey' ? 'selected' : ''}>New Jersey</option>
+        </select>
+        <div class="field-error" id="err_service_state" style="display:none;">Required</div>
+      </div>
+
+      <div class="field-row" data-field="equipment_type">
+        <label for="cr_equip">Equipment type <span class="required-mark">*</span></label>
+        <input type="text" id="cr_equip" name="equipment_type" value="${escapeHtml(d.equipment_type || '')}" placeholder="Combi Oven / Walk-in Cooler / …">
+        <div class="field-error" id="err_equipment_type" style="display:none;">Required</div>
+      </div>
+
+      <div class="field-row" data-field="symptom">
+        <label for="cr_symptom">Symptom <span class="required-mark">*</span></label>
+        <textarea id="cr_symptom" name="symptom" rows="2" placeholder="What's wrong with the equipment?">${escapeHtml(d.symptom || '')}</textarea>
+        <div class="field-error" id="err_symptom" style="display:none;">Required</div>
+      </div>
+
+      <div class="field-row" data-field="urgency">
+        <label for="cr_urgency">Urgency <span class="required-mark">*</span></label>
+        <select id="cr_urgency" name="urgency">
+          <option value="">— pick —</option>
+          <option value="Emergency"  ${d.urgency === 'Emergency' ? 'selected' : ''}>Emergency</option>
+          <option value="Today"      ${d.urgency === 'Today' ? 'selected' : ''}>Today</option>
+          <option value="This Week"  ${d.urgency === 'This Week' ? 'selected' : ''}>This Week</option>
+          <option value="Scheduled"  ${d.urgency === 'Scheduled' ? 'selected' : ''}>Scheduled</option>
+          <option value="Unknown"    ${d.urgency === 'Unknown' ? 'selected' : ''}>Unknown</option>
+        </select>
+        <div class="field-error" id="err_urgency" style="display:none;">Required</div>
+      </div>
+
+      <button type="button" class="optional-fields-toggle" id="cr_optional_toggle" aria-expanded="${d.__optionalOpen ? 'true' : 'false'}">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <polyline points="${d.__optionalOpen ? '6 9 12 15 18 9' : '9 6 15 12 9 18'}"/>
+        </svg>
+        Optional fields
+      </button>
+      <div class="optional-fields ${d.__optionalOpen ? 'expanded' : ''}" id="cr_optional">
+        <div class="field-row"><label for="cr_did">Business DID</label>
+          <input type="text" id="cr_did" name="business_phone_did" value="${escapeHtml(d.business_phone_did || '')}"></div>
+        <div class="field-row"><label for="cr_source">Marketing source</label>
+          <input type="text" id="cr_source" name="marketing_source" value="${escapeHtml(d.marketing_source || '')}"></div>
+        <div class="field-row"><label for="cr_area">Area (city/region)</label>
+          <input type="text" id="cr_area" name="area" value="${escapeHtml(d.area || '')}"></div>
+        <div class="field-row"><label for="cr_addr">Service address</label>
+          <textarea id="cr_addr" name="service_address" rows="2" placeholder="e.g. 124 East 50th, New York, NY 10022">${escapeHtml(d.service_address || '')}</textarea></div>
+        <div class="field-row"><label for="cr_note">Internal comment</label>
+          <textarea id="cr_note" name="internal_comment" rows="2">${escapeHtml(d.internal_comment || '')}</textarea></div>
+      </div>
+    `;
+
+    bindCreateFormEvents();
+    updateSubmitEnabled();
+  }
+
+  function bindCreateFormEvents() {
+    const f = $('#createRepairJobForm');
+    if (!f) return;
+
+    f.addEventListener('input', (e) => {
+      const name = e.target.name;
+      if (!name) return;
+      const d = state.createDraft || (state.createDraft = {});
+      d[name] = e.target.value;
+      updateSubmitEnabled();
+      const err = $('#err_' + name);
+      if (err) err.style.display = 'none';
+      const row = e.target.closest('.field-row');
+      if (row) row.classList.remove('invalid');
+
+      if (name === 'customer_name') triggerCustomerTypeahead(e.target.value);
+      if (name === 'caller_phone') triggerPhoneDedupCheck();
+    });
+
+    const tgl = $('#cr_optional_toggle');
+    if (tgl) tgl.addEventListener('click', () => {
+      const d = state.createDraft || (state.createDraft = {});
+      d.__optionalOpen = !d.__optionalOpen;
+      const panel = $('#cr_optional');
+      const svg = tgl.querySelector('polyline');
+      if (d.__optionalOpen) { panel.classList.add('expanded'); if (svg) svg.setAttribute('points', '6 9 12 15 18 9'); }
+      else { panel.classList.remove('expanded'); if (svg) svg.setAttribute('points', '9 6 15 12 9 18'); }
+      tgl.setAttribute('aria-expanded', d.__optionalOpen ? 'true' : 'false');
+    });
+
+    const unlock = $('#cr_customer_unlock');
+    if (unlock) unlock.addEventListener('click', () => {
+      const d = state.createDraft;
+      delete d.customer_id;
+      renderCreateForm();
+      setTimeout(() => $('#cr_customer')?.focus(), 0);
+    });
+  }
+
+  function updateSubmitEnabled() {
+    const d = state.createDraft || {};
+    const required = ['caller_phone', 'service_state', 'equipment_type', 'symptom', 'urgency'];
+    const customerOk = !!(d.customer_id || (d.customer_name && d.customer_name.trim()));
+    const requiredOk = required.every(k => (d[k] || '').toString().trim());
+    const w = state.createDedupWarnings;
+    const blockedByDedup = !!(w && w.phone_multi_match && w.phone_multi_match.length > 1
+                              && !state.createForceNew && !d.customer_id);
+    const enable = customerOk && requiredOk && !blockedByDedup && !state.createSubmitting;
+    const btn = $('#btnCreateSubmit');
+    if (btn) btn.disabled = !enable;
+  }
+
+  // -- Customer typeahead --
+  let customerTypeaheadTimer = null;
+  function triggerCustomerTypeahead(q) {
+    clearTimeout(customerTypeaheadTimer);
+    customerTypeaheadTimer = setTimeout(() => doCustomerTypeahead(q), 200);
+  }
+
+  async function doCustomerTypeahead(q) {
+    const panel = $('#cr_customer_panel');
+    if (!panel) return;
+    const query = (q || '').trim();
+    if (query.length < 2) { panel.classList.remove('open'); panel.innerHTML = ''; return; }
+
+    let results;
+    if (state.customerLookupCache.has(query)) {
+      results = state.customerLookupCache.get(query);
+    } else {
+      try { results = await api.searchLink('Customer', query); }
+      catch (e) { console.error('typeahead failed', e); return; }
+      state.customerLookupCache.set(query, results);
+    }
+
+    const d = state.createDraft || {};
+    const items = (results || []).slice(0, 8).map(r => `
+      <button type="button" class="typeahead-item" role="option"
+              data-customer-id="${escapeHtml(r.value)}"
+              data-customer-name="${escapeHtml(r.label || r.value)}">
+        ${escapeHtml(r.label || r.value)}
+      </button>`).join('');
+
+    let system = '';
+    if (query.length >= 3) {
+      system += `<button type="button" class="typeahead-item system" data-create-new="1">
+        + Create new "${escapeHtml(query)}"
+      </button>`;
+    }
+    if (d.caller_phone && d.caller_phone.trim()) {
+      system += `<button type="button" class="typeahead-item system" data-use-phone="1">
+        Use phone ${escapeHtml(d.caller_phone)} — no name
+      </button>`;
+    }
+
+    panel.innerHTML = items + system;
+    panel.classList.add('open');
+
+    panel.querySelectorAll('.typeahead-item').forEach(el => {
+      el.addEventListener('click', () => {
+        if (el.dataset.createNew) { panel.classList.remove('open'); return; }
+        if (el.dataset.usePhone) {
+          state.createDraft.customer_name = '';
+          delete state.createDraft.customer_id;
+          renderCreateForm();
+          return;
+        }
+        state.createDraft.customer_id = el.dataset.customerId;
+        state.createDraft.customer_name = el.dataset.customerName;
+        renderCreateForm();
+        triggerPhoneDedupCheck();
+      });
+    });
+  }
+
+  // -- Dedup banners --
+  let dedupCheckTimer = null;
+  function triggerPhoneDedupCheck() {
+    clearTimeout(dedupCheckTimer);
+    dedupCheckTimer = setTimeout(() => doPhoneDedupCheck(), 400);
+  }
+
+  async function doPhoneDedupCheck() {
+    if (!state.createOpen) return;
+    const d = state.createDraft || {};
+    const phone = (d.caller_phone || '').trim();
+    if (!phone && !d.customer_id) {
+      state.createDedupWarnings = null;
+      renderDedupBanners();
+      updateSubmitEnabled();
+      return;
+    }
+    try {
+      const r = await call('baro_crm.api.repair_job.find_dedup_warnings', {
+        customer: d.customer_id || null,
+        customer_name: d.customer_name || null,
+        caller_phone: phone || null,
+        equipment_type: d.equipment_type || null,
+        lookback_days: 90,
+      });
+      state.createDedupWarnings = r;
+      renderDedupBanners();
+      updateSubmitEnabled();
+    } catch (e) { console.error('find_dedup_warnings failed', e); }
+  }
+
+  function renderDedupBanners() {
+    const host = $('#dedupBanners');
+    if (!host) return;
+    const w = state.createDedupWarnings;
+    if (!w) { host.innerHTML = ''; return; }
+    const parts = [];
+
+    if (w.phone_multi_match && w.phone_multi_match.length > 1) {
+      const list = w.phone_multi_match.map(c =>
+        `<button type="button" class="btn-mini" data-pick-customer="${escapeHtml(c)}">${escapeHtml(c)}</button>`
+      ).join(' ');
+      parts.push(`
+        <div class="dedup-banner block">
+          <strong>Phone matches ${w.phone_multi_match.length} customers.</strong>
+          Pick one or tick "Create new anyway" to proceed with a new Customer.
+          <div class="actions">${list}</div>
+          <label class="force-create-new-row">
+            <input type="checkbox" id="cr_force_new" ${state.createForceNew ? 'checked' : ''}>
+            Create new Customer anyway
+          </label>
+        </div>`);
+    }
+    if (w.phone_match_customer) {
+      parts.push(`
+        <div class="dedup-banner info">
+          Phone matches existing Customer <strong>${escapeHtml(w.phone_match_customer)}</strong> —
+          will be linked unless you pick a different Customer.
+        </div>`);
+    }
+    if (w.similar_customers && w.similar_customers.length) {
+      const list = w.similar_customers.map(s =>
+        `<button type="button" class="btn-mini" data-pick-customer="${escapeHtml(s.name)}">${escapeHtml(s.customer_name)}</button>`
+      ).join(' ');
+      parts.push(`
+        <div class="dedup-banner warn">
+          Similar existing customers — verify this isn't a duplicate:
+          <div class="actions">${list}</div>
+        </div>`);
+    }
+    if (w.active_jobs && w.active_jobs.length) {
+      const list = w.active_jobs.slice(0, 3).map(rj => `
+        <div class="actions">
+          <strong>${escapeHtml(rj.name)}</strong> · ${escapeHtml(rj.equipment_type || '—')} · ${escapeHtml(rj.reason || '')}
+          <button type="button" class="btn-mini" data-open-rj="${escapeHtml(rj.name)}">Open RJ</button>
+        </div>`).join('');
+      parts.push(`
+        <div class="dedup-banner warn">
+          <strong>Possible existing active job(s):</strong>
+          ${list}
+        </div>`);
+    }
+
+    host.innerHTML = parts.join('');
+
+    host.querySelectorAll('[data-pick-customer]').forEach(el => {
+      el.addEventListener('click', () => {
+        state.createDraft.customer_id = el.dataset.pickCustomer;
+        state.createDraft.customer_name = el.dataset.pickCustomer;
+        state.createForceNew = false;
+        renderCreateForm();
+        renderDedupBanners();
+        updateSubmitEnabled();
+      });
+    });
+    host.querySelectorAll('[data-open-rj]').forEach(el => {
+      el.addEventListener('click', () => {
+        const id = el.dataset.openRj;
+        closeCreateDrawer({ force: true });
+        openInspector(id);
+      });
+    });
+    const fcn = $('#cr_force_new');
+    if (fcn) fcn.addEventListener('change', () => {
+      state.createForceNew = fcn.checked;
+      state.createDraft.force_create_new = fcn.checked;
+      updateSubmitEnabled();
+    });
+  }
+
+  // -- Submit --
+  async function submitCreateRepairJob() {
+    if (state.createSubmitting) return;
+    const d = state.createDraft || {};
+    const required = ['caller_phone', 'service_state', 'equipment_type', 'symptom', 'urgency'];
+    const customerOk = !!(d.customer_id || (d.customer_name && d.customer_name.trim()));
+    let firstInvalid = null;
+
+    if (!customerOk) {
+      const row = $('#createRepairJobForm [data-field="customer"]');
+      if (row) row.classList.add('invalid');
+      const err = $('#err_customer'); if (err) err.style.display = '';
+      firstInvalid = firstInvalid || (row && row.querySelector('input,textarea,select'));
+    }
+    for (const k of required) {
+      const val = (d[k] || '').toString().trim();
+      if (!val) {
+        const row = $(`#createRepairJobForm [data-field="${k}"]`);
+        if (row) row.classList.add('invalid');
+        const err = $(`#err_${k}`); if (err) err.style.display = '';
+        firstInvalid = firstInvalid || (row && row.querySelector('input,textarea,select'));
+      }
+    }
+    if (firstInvalid) { firstInvalid.focus(); return; }
+
+    const payload = {};
+    for (const k of ['customer_id', 'customer_name', 'caller_phone', 'business_phone_did',
+                     'area', 'service_state', 'marketing_source', 'service_address',
+                     'equipment_type', 'symptom', 'urgency', 'internal_comment']) {
+      if (d[k] && d[k].toString().trim()) payload[k] = d[k].toString().trim();
+    }
+    if (state.createForceNew) payload.force_create_new = true;
+
+    state.createSubmitting = true;
+    const btn = $('#btnCreateSubmit');
+    btn.disabled = true;
+    btn.textContent = 'Creating…';
+
+    try {
+      const r = await call('baro_crm.api.repair_job.create_repair_job', { payload });
+      const newJob = r.doc;
+      const merged = [newJob].concat(state.jobs);
+      setJobs(merged);
+      if (state.jobsTotal != null) state.jobsTotal += 1;
+
+      if (state.activeView === 'list') {
+        const tbody = $('#tableBody');
+        if (tbody) tbody.insertAdjacentHTML('afterbegin', renderRow(newJob));
+      } else if (state.activeView === 'kanban') {
+        const colTitle = colTitleForStatus(newJob.status);
+        if (colTitle) {
+          const body = document.querySelector(`.kanban-col-body[data-column="${escapeAttr(colTitle)}"]`);
+          if (body) body.insertAdjacentHTML('afterbegin', kanbanCardHtml(newJob));
+        }
+      }
+
+      api.stateCounts().then(c => { state.stateCounts = c; renderStateTabs(); }).catch(() => {});
+
+      const warningSummary = (r.warnings || []).map(w => w.message).filter(Boolean).join(' · ');
+      toast(`Created ${r.name}${warningSummary ? ' · ' + warningSummary : ''}`, 'ok');
+
+      closeCreateDrawer({ force: true });
+      openInspector(r.name);
+    } catch (e) {
+      console.error('create_repair_job failed', e);
+      const msg = extractError(e);
+      const host = $('#dedupBanners');
+      if (host && msg.toLowerCase().includes('matches') && msg.toLowerCase().includes('customers')) {
+        host.insertAdjacentHTML('afterbegin',
+          `<div class="dedup-banner block"><strong>Cannot create.</strong> ${escapeHtml(msg)}</div>`);
+      }
+      toast('Create failed: ' + msg, 'err');
+    } finally {
+      state.createSubmitting = false;
+      btn.disabled = false;
+      btn.textContent = 'Create Repair Job';
+      updateSubmitEnabled();
+    }
+  }
+
+  function colTitleForStatus(status) {
+    const cols = {
+      'Intake':       ['New', 'Need Follow-up'],
+      'Sales':        ['Diagnostics Offered', 'Waiting Prepayment', 'Diagnostics Paid', 'Estimate Sent', 'Waiting Client Approval'],
+      'Production':   ['Technician Assigned', 'Diagnostics In Progress', 'Diagnosis Completed', 'Parts Needed', 'Repair In Progress', 'Repair Completed'],
+      'Money & Care': ['Invoice Sent', 'Paid', 'Warranty Active', 'Closed'],
+      'Out':          ['Lost', 'Spam', 'Unrelated'],
+    };
+    for (const [title, set] of Object.entries(cols)) if (set.includes(status)) return title;
+    return null;
+  }
+
+  function escapeAttr(s) { return String(s).replace(/"/g, '&quot;'); }
 
   // ---------------------------------------------------------------------------
   // 15. Boot
