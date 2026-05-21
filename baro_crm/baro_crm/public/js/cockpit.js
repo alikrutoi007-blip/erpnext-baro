@@ -481,10 +481,12 @@
     if (escCancelled) {
       escCancelled = false;
       activeSortableEvt = null;
+      if (state._kanbanRenderDeferred) { state._kanbanRenderDeferred = false; renderKanban(); }
       return;
     }
     handleDropResolution(evt);
     activeSortableEvt = null;
+    if (state._kanbanRenderDeferred) { state._kanbanRenderDeferred = false; renderKanban(); }
   }
 
   function onEscDuringDrag(e) {
@@ -909,6 +911,9 @@
   function renderKanban() {
     const kanban = $('#kanban');
     if (!kanban) return;
+    // Drag-in-flight guard (audit bug 1.8): never wipe and re-mount the kanban
+    // while SortableJS is actively manipulating it — the DOM swap kills the drag.
+    if (activeSortableEvt) { state._kanbanRenderDeferred = true; return; }
     const cols = [
       { title: 'Intake',        keys: ['New','Need Follow-up'] },
       { title: 'Sales',         keys: ['Diagnostics Offered','Waiting Prepayment','Diagnostics Paid','Estimate Sent','Waiting Client Approval'] },
@@ -1432,6 +1437,7 @@
     }
     const pop = $('#statusPopover');
     state.statusPopoverFor = jobId;
+    state.statusPopoverTrigger = targetEl;
     const job = jobById(jobId);
     if (!job) return;
 
@@ -1468,6 +1474,11 @@
   function closeStatusPopover() {
     $('#statusPopover').classList.remove('open');
     state.statusPopoverFor = null;
+    const trigger = state.statusPopoverTrigger;
+    state.statusPopoverTrigger = null;
+    if (trigger && typeof trigger.focus === 'function') {
+      try { trigger.focus(); } catch (e) {}
+    }
   }
 
   async function applyAction(jobId, action) {
