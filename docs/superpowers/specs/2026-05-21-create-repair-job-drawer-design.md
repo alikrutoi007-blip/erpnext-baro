@@ -1,7 +1,7 @@
 # Create Repair Job drawer (in-cockpit) — design
 
 Date: 2026-05-21
-Status: Pending user review.
+Status: Shipped 2026-05-21. Tag: `create-rj-drawer-shipped`. All 6 backend smoke checks pass. Core drawer browser checks (open, validation, typeahead, varied phone formats, successful create, drawer close, surgical insert + inspector open, LIST status pill regression) all green. Remaining dedup / address / focus edge cases to be walked opportunistically — non-blocking.
 Roadmap parent: `2026-05-19-baro-crm-roadmap.md` (sub-project F, post-2026-05-21 revision)
 Implementation target: `baro_crm` Frappe app
 Estimated effort: 2–3 days

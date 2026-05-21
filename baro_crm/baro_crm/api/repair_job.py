@@ -412,10 +412,23 @@ def get_boot_context():
 
 TERMINAL_STATUSES = ["Closed", "Lost", "Spam", "Unrelated"]
 
+# Whitelist of sort modes → real SQL order_by clauses.
+# Keep this strict so callers cannot inject arbitrary SQL through sort_by.
+SORT_MODES = {
+    "modified_desc":      "modified desc",
+    "call_datetime_desc": "call_datetime desc",
+    "creation_desc":      "creation desc",
+    "next_follow_up_asc": "next_follow_up_datetime asc",
+    "urgency":            ("FIELD(urgency, 'Emergency','Today','This Week','Scheduled','Unknown'), "
+                           "modified desc"),
+    "oldest_stuck":       "modified asc",
+}
+
 
 @frappe.whitelist()
 def get_jobs(state=None, status=None, search=None,
-             limit=500, offset=0, date_from=None, scope="active", city=None):
+             limit=500, offset=0, date_from=None, scope="active", city=None,
+             sort_by="modified_desc"):
     """Paginated list. Returns {jobs, offset, limit, total?, has_more}.
     total is None when search is active (frappe.db.count doesn't honor or_filters).
     scope: 'active' (default) excludes terminal statuses; 'all' includes them."""
@@ -452,12 +465,13 @@ def get_jobs(state=None, status=None, search=None,
             ["name", "like", s],
         ]
 
+    order_by = SORT_MODES.get(sort_by, SORT_MODES["modified_desc"])
     rows = frappe.get_list(
         "Repair Job",
         fields=LIST_FIELDS + ["service_address_text", "address_needs_review"],
         filters=filters,
         or_filters=or_filters,
-        order_by="modified desc",
+        order_by=order_by,
         limit_start=offset,
         limit_page_length=limit,
     )

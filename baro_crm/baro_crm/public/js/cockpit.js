@@ -163,6 +163,7 @@
     scope: 'active',          // 'active' (default) | 'all'
     city: '',                 // empty = no filter
     cities: [],               // populated from filterOptions()
+    sortBy: 'modified_desc',  // see SORT_MODES backend whitelist
     pageLimit: 500,
     jobsHasMore: false,
     jobsTotal: null,
@@ -764,6 +765,17 @@
                 <option value="">All cities</option>
               </select>
             </label>
+            <label class="filter-chip filter-chip-select" title="Sort order">
+              <span>Sort</span>
+              <select id="sortFilter">
+                <option value="modified_desc">Updated ↓</option>
+                <option value="call_datetime_desc">Call time ↓</option>
+                <option value="creation_desc">Created ↓</option>
+                <option value="next_follow_up_asc">Follow-up ↑</option>
+                <option value="urgency">Urgency</option>
+                <option value="oldest_stuck">Oldest stuck</option>
+              </select>
+            </label>
             <button class="filter-chip" type="button" disabled title="Coming soon">Technician</button>
             <button class="filter-chip" type="button" disabled title="Coming soon">Marketing source</button>
             <button class="filter-chip" type="button" disabled title="Coming soon">Date range</button>
@@ -774,9 +786,7 @@
           <div class="table-head">
             <span class="th-title">Repair Jobs</span>
             <span class="th-count" id="rowCount">0 results</span>
-            <div class="right">
-              <button class="btn btn-ghost" type="button" style="font-size:12.5px;padding:5px 10px;">Sort: Updated ↓</button>
-            </div>
+            <div class="right"></div>
           </div>
           <div class="table-scroll">
             <table class="table">
@@ -1036,6 +1046,7 @@
         search: state.search,
         scope: state.scope,
         city: state.city || null,
+        sort_by: state.sortBy,
         limit: state.pageLimit,
         offset: 0,
       };
@@ -1067,6 +1078,7 @@
         search: state.search,
         scope: state.scope,
         city: state.city || null,
+        sort_by: state.sortBy,
         limit: state.pageLimit,
         offset: state.jobs.length,
       };
@@ -1858,10 +1870,14 @@
       }
     });
 
-    // City filter
+    // City + Sort filters
     document.addEventListener('change', (e) => {
-      if (e.target && e.target.id === 'cityFilter') {
+      if (!e.target) return;
+      if (e.target.id === 'cityFilter') {
         state.city = e.target.value || '';
+        loadAll({ refreshCounts: false });
+      } else if (e.target.id === 'sortFilter') {
+        state.sortBy = e.target.value || 'modified_desc';
         loadAll({ refreshCounts: false });
       }
     });
