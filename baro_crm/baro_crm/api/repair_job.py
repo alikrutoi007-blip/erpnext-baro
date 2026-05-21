@@ -425,10 +425,47 @@ SORT_MODES = {
 }
 
 
+DATE_TYPE_FIELDS = {
+    "follow_up": "next_follow_up_datetime",
+    "call":      "call_datetime",
+    "created":   "creation",
+    "updated":   "modified",
+}
+
+
+def _resolve_date_preset(preset, field):
+    """Returns a list of filter triples for the given preset. Empty list = no filter.
+    Pass through unrecognised presets as a clean no-op so the caller never errors."""
+    if not preset or preset == "clear":
+        return []
+    today = frappe.utils.getdate(frappe.utils.nowdate())
+    if preset == "today":
+        return [[field, "between", [str(today), str(today)]]]
+    if preset == "yesterday":
+        d = frappe.utils.add_days(today, -1)
+        return [[field, "between", [str(d), str(d)]]]
+    if preset == "tomorrow":
+        d = frappe.utils.add_days(today, 1)
+        return [[field, "between", [str(d), str(d)]]]
+    if preset == "this_week":
+        # Mon..Sun anchored on `today`. weekday(): Mon=0..Sun=6
+        wd = today.weekday()
+        monday = frappe.utils.add_days(today, -wd)
+        sunday = frappe.utils.add_days(monday, 6)
+        return [[field, "between", [str(monday), str(sunday)]]]
+    if preset == "overdue":
+        # Strictly past dates; only set rows (NULLs excluded by Frappe by default for <)
+        return [[field, "<", str(today)], [field, "is", "set"]]
+    if preset == "no_date":
+        return [[field, "is", "not set"]]
+    return []
+
+
 @frappe.whitelist()
 def get_jobs(state=None, status=None, search=None,
-             limit=500, offset=0, date_from=None, scope="active", city=None,
-             sort_by="modified_desc"):
+             limit=500, offset=0, date_from=None, date_to=None,
+             scope="active", city=None, sort_by="modified_desc",
+             date_type=None, date_preset=None):
     """Paginated list. Returns {jobs, offset, limit, total?, has_more}.
     total is None when search is active (frappe.db.count doesn't honor or_filters).
     scope: 'active' (default) excludes terminal statuses; 'all' includes them."""
@@ -452,6 +489,20 @@ def get_jobs(state=None, status=None, search=None,
         filters.append(["area", "=", city])
     if scope == "active" and not status:
         filters.append(["status", "not in", TERMINAL_STATUSES])
+
+    # Date strip filter — resolved server-side so the client never has to know
+    # current-week boundaries. Backward-compatible: no date_type/date_preset
+    # passed = no filter applied.
+    date_field = DATE_TYPE_FIELDS.get(date_type) if date_type else None
+    if date_field:
+        if date_from and date_to:
+            filters.append([date_field, "between", [date_from, date_to]])
+        elif date_from:
+            filters.append([date_field, ">=", date_from])
+        elif date_to:
+            filters.append([date_field, "<=", date_to])
+        else:
+            filters.extend(_resolve_date_preset(date_preset, date_field))
 
     or_filters = None
     if search:

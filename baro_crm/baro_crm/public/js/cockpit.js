@@ -164,6 +164,8 @@
     city: '',                 // empty = no filter
     cities: [],               // populated from filterOptions()
     sortBy: 'modified_desc',  // see SORT_MODES backend whitelist
+    dateType: '',             // '' | 'follow_up' | 'call' | 'created' | 'updated'
+    datePreset: '',           // '' | 'today' | 'yesterday' | 'tomorrow' | 'this_week' | 'overdue' | 'no_date'
     pageLimit: 500,
     jobsHasMore: false,
     jobsTotal: null,
@@ -778,7 +780,25 @@
             </label>
             <button class="filter-chip" type="button" disabled title="Coming soon">Technician</button>
             <button class="filter-chip" type="button" disabled title="Coming soon">Marketing source</button>
-            <button class="filter-chip" type="button" disabled title="Coming soon">Date range</button>
+          </div>
+          <div class="date-strip" role="group" aria-label="Date filter">
+            <label class="filter-chip filter-chip-select" title="Choose which date the chips below filter on">
+              <span>Date</span>
+              <select id="dateTypeFilter">
+                <option value="">Date type…</option>
+                <option value="follow_up">Follow-up</option>
+                <option value="call">Call</option>
+                <option value="created">Created</option>
+                <option value="updated">Updated</option>
+              </select>
+            </label>
+            <button class="filter-chip date-chip" type="button" data-date-preset="today">Today</button>
+            <button class="filter-chip date-chip" type="button" data-date-preset="yesterday">Yesterday</button>
+            <button class="filter-chip date-chip" type="button" data-date-preset="tomorrow">Tomorrow</button>
+            <button class="filter-chip date-chip" type="button" data-date-preset="this_week">This week</button>
+            <button class="filter-chip date-chip" type="button" data-date-preset="overdue">Overdue</button>
+            <button class="filter-chip date-chip" type="button" data-date-preset="no_date">No date</button>
+            <button class="filter-chip date-chip is-clear" type="button" data-date-preset="clear" title="Clear date filter">Clear</button>
           </div>
         </div>
 
@@ -1047,6 +1067,8 @@
         scope: state.scope,
         city: state.city || null,
         sort_by: state.sortBy,
+        date_type: state.dateType || null,
+        date_preset: state.datePreset || null,
         limit: state.pageLimit,
         offset: 0,
       };
@@ -1079,6 +1101,8 @@
         scope: state.scope,
         city: state.city || null,
         sort_by: state.sortBy,
+        date_type: state.dateType || null,
+        date_preset: state.datePreset || null,
         limit: state.pageLimit,
         offset: state.jobs.length,
       };
@@ -1111,6 +1135,16 @@
         <div class="load-more-info">Showing ${state.jobs.length}${state.jobsTotal != null ? ` of ${state.jobsTotal}` : ''}</div>
         <button id="kanbanLoadMore" type="button" class="btn">${escapeHtml(label)}</button>
       </div>`;
+  }
+
+  function updateDateStripUI() {
+    const sel = $('#dateTypeFilter');
+    if (sel) sel.value = state.dateType || '';
+    $$('.date-chip[data-date-preset]').forEach(btn => {
+      const on = btn.dataset.datePreset === state.datePreset && state.datePreset !== '';
+      btn.classList.toggle('is-on', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -1760,6 +1794,21 @@
         return;
       }
 
+      const dateChip = e.target.closest('.date-chip[data-date-preset]');
+      if (dateChip) {
+        const preset = dateChip.dataset.datePreset;
+        if (preset === 'clear') {
+          state.datePreset = '';
+        } else {
+          // Default to follow_up if user clicks a chip before picking a type
+          if (!state.dateType) state.dateType = 'follow_up';
+          state.datePreset = (state.datePreset === preset) ? '' : preset;
+        }
+        updateDateStripUI();
+        loadAll({ refreshCounts: false });
+        return;
+      }
+
       const statusBtn = e.target.closest('[data-status-btn]');
       const row = e.target.closest('tr[data-id]');
       if (statusBtn) {
@@ -1870,7 +1919,7 @@
       }
     });
 
-    // City + Sort filters
+    // City + Sort + Date-type filters
     document.addEventListener('change', (e) => {
       if (!e.target) return;
       if (e.target.id === 'cityFilter') {
@@ -1879,6 +1928,12 @@
       } else if (e.target.id === 'sortFilter') {
         state.sortBy = e.target.value || 'modified_desc';
         loadAll({ refreshCounts: false });
+      } else if (e.target.id === 'dateTypeFilter') {
+        state.dateType = e.target.value || '';
+        // Switching to "Date type…" clears the preset too
+        if (!state.dateType) state.datePreset = '';
+        updateDateStripUI();
+        if (state.datePreset) loadAll({ refreshCounts: false });
       }
     });
 
