@@ -16,5 +16,28 @@
   "permlevel": 0,
   "description": "US state for service-area filtering (4 active markets: TX, FL, NY, NJ). Set automatically by ingest from area; manager-editable.",
   "module": "Baro CRM"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Repair Job-service_address_text",
+  "dt": "Repair Job",
+  "fieldname": "service_address_text",
+  "label": "Service Address (raw text)",
+  "fieldtype": "Small Text",
+  "insert_after": "service_address",
+  "description": "Raw text stored when the input couldn't be parsed into a clean Address doc. See address_needs_review.",
+  "module": "Baro CRM"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Repair Job-address_needs_review",
+  "dt": "Repair Job",
+  "fieldname": "address_needs_review",
+  "label": "Address needs review",
+  "fieldtype": "Check",
+  "insert_after": "service_address_text",
+  "default": "0",
+  "description": "Set to 1 when service_address_text is populated but no Address doc was created.",
+  "module": "Baro CRM"
  }
 ]

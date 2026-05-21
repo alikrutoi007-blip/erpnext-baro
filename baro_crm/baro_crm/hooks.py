@@ -26,7 +26,11 @@ fixtures = [
         "dt": "Custom Field",
         "filters": [
             ["dt", "=", "Repair Job"],
-            ["fieldname", "in", ["service_state"]],
+            ["fieldname", "in", [
+                "service_state",
+                "service_address_text",
+                "address_needs_review",
+            ]],
         ],
     }
 ]
