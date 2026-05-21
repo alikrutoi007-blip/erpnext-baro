@@ -888,7 +888,7 @@
           </div>
         </td>
         <td>
-          <button class="status-pill s-${s.color}" type="button" data-status-btn data-stop aria-label="Status ${escapeHtml(j.status || '')}, click to change" aria-haspopup="listbox">
+          <button class="status-pill s-${s.color}" type="button" data-status-btn data-job-id="${escapeHtml(j.name)}" data-stop aria-label="Status ${escapeHtml(j.status || '')}, click to change" aria-haspopup="listbox">
             <span class="dot" aria-hidden="true"></span>
             <span>${escapeHtml(j.status || 'New')}</span>
             <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
@@ -1051,6 +1051,10 @@
   function closeInspector() {
     state.selectedId = null;
     state.timeline = null;
+    if (state.inspectorTrapUninstall) {
+      state.inspectorTrapUninstall();
+      state.inspectorTrapUninstall = null;
+    }
     $('#inspector').classList.remove('open');
     $('#inspector').setAttribute('aria-hidden', 'true');
     $('#inspOverlay').classList.remove('open');
@@ -1454,11 +1458,23 @@
     state.statusPopoverFor = jobId;
     state.statusPopoverTrigger = targetEl;
     const job = jobById(jobId);
-    if (!job) return;
+    if (!job) {
+      console.warn('Status popover requested for unknown Repair Job', jobId);
+      toast('Could not open status actions: job data is not loaded.', 'err');
+      return;
+    }
 
     const r = targetEl.getBoundingClientRect();
-    pop.style.top = `${r.bottom + 6}px`;
-    pop.style.left = `${Math.min(r.left, window.innerWidth - 280)}px`;
+    const popWidth = 280;
+    const popHeight = 390;
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - popWidth - 8));
+    const below = r.bottom + 6;
+    const above = r.top - popHeight - 6;
+    const top = (below + popHeight > window.innerHeight && above > 8)
+      ? above
+      : Math.min(below, window.innerHeight - popHeight - 8);
+    pop.style.top = `${Math.max(8, top)}px`;
+    pop.style.left = `${left}px`;
 
     const validTransitions = TRANSITIONS_FROM[job.status] || [];
     const validActions = new Set(validTransitions.map(t => t.action));
@@ -1622,9 +1638,12 @@
 
       const statusBtn = e.target.closest('[data-status-btn]');
       const row = e.target.closest('tr[data-id]');
-      if (statusBtn && row) {
+      if (statusBtn) {
+        const jobId = statusBtn.dataset.jobId || (row && row.dataset.id);
         e.stopPropagation();
-        openStatusPopover(statusBtn, row.dataset.id);
+        e.preventDefault();
+        if (jobId) openStatusPopover(statusBtn, jobId);
+        else toast('Could not identify this Repair Job row.', 'err');
         return;
       }
 
