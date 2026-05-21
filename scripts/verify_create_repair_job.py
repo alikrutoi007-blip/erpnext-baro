@@ -11,10 +11,15 @@ Per the 2026-05-21 plan:
 import argparse, sys, uuid, random
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from urllib.parse import quote
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
 from erpnext_client import get_client, ERPNextError
+
+
+def _resource_path(doctype, name):
+    return f"/api/resource/{quote(doctype)}/{quote(name)}"
 
 
 def main():
@@ -229,7 +234,7 @@ def _cleanup_run(client, run_id, rj_name):
     """Strict order: RJs -> Contacts -> Addresses -> Customers."""
     for name in rj_name:
         try:
-            client._request('DELETE', f'/api/resource/Repair Job/{name}')
+            client._request('DELETE', _resource_path('Repair Job', name))
             print(f"  deleted RJ {name}")
         except Exception as e:
             print(f"  cleanup warn: RJ {name}: {e}")
@@ -250,7 +255,7 @@ def _cleanup_run(client, run_id, rj_name):
             linked_contacts = []
         for c in linked_contacts:
             try:
-                client._request('DELETE', f'/api/resource/Contact/{c["name"]}')
+                client._request('DELETE', _resource_path('Contact', c["name"]))
                 print(f"  deleted Contact {c['name']}")
             except Exception as e:
                 print(f"  cleanup warn: Contact {c['name']}: {e}")
@@ -267,14 +272,14 @@ def _cleanup_run(client, run_id, rj_name):
             linked_addrs = []
         for a in linked_addrs:
             try:
-                client._request('DELETE', f'/api/resource/Address/{a["name"]}')
+                client._request('DELETE', _resource_path('Address', a["name"]))
                 print(f"  deleted Address {a['name']}")
             except Exception as e:
                 print(f"  cleanup warn: Address {a['name']}: {e}")
 
     for cust in test_customers:
         try:
-            client._request('DELETE', f'/api/resource/Customer/{cust["name"]}')
+            client._request('DELETE', _resource_path('Customer', cust["name"]))
             print(f"  deleted Customer {cust['name']}")
         except Exception as e:
             print(f"  cleanup warn: Customer {cust['name']}: {e}")
@@ -300,7 +305,7 @@ def _clean_stale_test_records(client, hours=24):
             filters=[['customer', '=', cust['name']]],
             fields=['name'], limit=50)
         for rj in rjs:
-            try: client._request('DELETE', f'/api/resource/Repair Job/{rj["name"]}')
+            try: client._request('DELETE', _resource_path('Repair Job', rj["name"]))
             except Exception: pass
         for ent in ('Contact', 'Address'):
             try:
@@ -312,9 +317,9 @@ def _clean_stale_test_records(client, hours=24):
             except Exception:
                 ents = []
             for e in ents:
-                try: client._request('DELETE', f'/api/resource/{ent}/{e["name"]}')
+                try: client._request('DELETE', _resource_path(ent, e["name"]))
                 except Exception: pass
-        try: client._request('DELETE', f'/api/resource/Customer/{cust["name"]}')
+        try: client._request('DELETE', _resource_path('Customer', cust["name"]))
         except Exception as e: print(f"  stale cleanup warn: Customer {cust['name']}: {e}")
     print(f"  swept {len(stale_custs)} stale Customer trees\n")
 
