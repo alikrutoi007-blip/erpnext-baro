@@ -574,6 +574,97 @@ def create_repair_job(payload):
 
 
 @frappe.whitelist()
+def find_dedup_warnings(customer=None, customer_name=None, caller_phone=None,
+                       equipment_type=None, lookback_days=90):
+    """Returns dedup hints WITHOUT blocking or linking. Drawer surfaces these
+    as informational/blocking banners depending on kind."""
+    out = {
+        'phone_match_customer': None,
+        'phone_multi_match': [],
+        'name_match_customer': None,
+        'similar_customers': [],
+        'active_jobs': [],
+    }
+    if not frappe.has_permission('Repair Job', 'create'):
+        return out
+
+    phone_norm = normalize_phone(caller_phone)
+    name_norm = (customer_name or '').strip().lower()
+
+    # Phone
+    if phone_norm:
+        matches = _find_customers_by_phone(phone_norm)
+        if len(matches) == 1:
+            out['phone_match_customer'] = next(iter(matches))
+        elif len(matches) > 1:
+            out['phone_multi_match'] = sorted(matches)
+
+    # Name - exact + prefix-similar
+    if name_norm:
+        rows = frappe.db.sql_list("""
+            SELECT name FROM `tabCustomer`
+            WHERE LOWER(TRIM(customer_name)) = %s LIMIT 2
+        """, (name_norm,))
+        if len(rows) == 1:
+            out['name_match_customer'] = rows[0]
+        if len(name_norm) >= 3:
+            sim = frappe.db.sql("""
+                SELECT name, customer_name FROM `tabCustomer`
+                WHERE LOWER(TRIM(customer_name)) LIKE %s
+                  AND LOWER(TRIM(customer_name)) != %s
+                LIMIT 5
+            """, (f'{name_norm}%', name_norm))
+            out['similar_customers'] = [
+                {'name': r[0], 'customer_name': r[1], 'why': 'starts with same prefix'}
+                for r in sim
+            ]
+
+    # Active jobs (90-day window)
+    from datetime import datetime, timedelta
+    try:
+        lookback = int(lookback_days)
+    except (TypeError, ValueError):
+        lookback = 90
+    cutoff = (datetime.now() - timedelta(days=lookback)).isoformat()
+    active_statuses = [
+        'New', 'Need Follow-up', 'Diagnostics Offered', 'Waiting Prepayment',
+        'Diagnostics Paid', 'Technician Assigned', 'Diagnostics In Progress',
+        'Diagnosis Completed', 'Estimate Sent', 'Waiting Client Approval',
+        'Parts Needed', 'Repair In Progress', 'Repair Completed', 'Invoice Sent',
+    ]
+    or_filters = []
+    if customer:
+        or_filters.append(['customer', '=', customer])
+    if phone_norm:
+        or_filters.append(['caller_phone', '=', phone_norm])
+    if not or_filters:
+        return out
+
+    rjs = frappe.get_list('Repair Job',
+        fields=['name', 'status', 'customer', 'caller_phone',
+                'equipment_type', 'modified'],
+        filters=[['status', 'in', active_statuses],
+                 ['modified', '>=', cutoff]],
+        or_filters=or_filters,
+        limit_page_length=10,
+        order_by='modified desc')
+
+    for rj in rjs:
+        reasons = []
+        if customer and rj['customer'] == customer:
+            reasons.append('same customer')
+        if phone_norm and rj['caller_phone'] == phone_norm:
+            reasons.append('same phone')
+        if equipment_type and rj['equipment_type'] == equipment_type:
+            reasons.append('same equipment')
+        if reasons:
+            rj['reason'] = ' + '.join(reasons)
+            out['active_jobs'].append(rj)
+
+    return out
+
+
+@frappe.whitelist()
 def set_field(repair_job, fieldname, value):
     """Inline-edit a single field on a Repair Job.
 
