@@ -439,23 +439,27 @@ def _resolve_date_preset(preset, field):
     if not preset or preset == "clear":
         return []
     today = frappe.utils.getdate(frappe.utils.nowdate())
+
+    def day_bounds(d):
+        return [f"{d} 00:00:00", f"{d} 23:59:59.999999"]
+
     if preset == "today":
-        return [[field, "between", [str(today), str(today)]]]
+        return [[field, "between", day_bounds(today)]]
     if preset == "yesterday":
         d = frappe.utils.add_days(today, -1)
-        return [[field, "between", [str(d), str(d)]]]
+        return [[field, "between", day_bounds(d)]]
     if preset == "tomorrow":
         d = frappe.utils.add_days(today, 1)
-        return [[field, "between", [str(d), str(d)]]]
+        return [[field, "between", day_bounds(d)]]
     if preset == "this_week":
         # Mon..Sun anchored on `today`. weekday(): Mon=0..Sun=6
         wd = today.weekday()
         monday = frappe.utils.add_days(today, -wd)
         sunday = frappe.utils.add_days(monday, 6)
-        return [[field, "between", [str(monday), str(sunday)]]]
+        return [[field, "between", [day_bounds(monday)[0], day_bounds(sunday)[1]]]]
     if preset == "overdue":
         # Strictly past dates; only set rows (NULLs excluded by Frappe by default for <)
-        return [[field, "<", str(today)], [field, "is", "set"]]
+        return [[field, "<", day_bounds(today)[0]], [field, "is", "set"]]
     if preset == "no_date":
         return [[field, "is", "not set"]]
     return []

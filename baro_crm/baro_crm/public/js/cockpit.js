@@ -786,8 +786,8 @@
               <span>Date</span>
               <select id="dateTypeFilter">
                 <option value="">Date type…</option>
+                <option value="call">Call / lead</option>
                 <option value="follow_up">Follow-up</option>
-                <option value="call">Call</option>
                 <option value="created">Created</option>
                 <option value="updated">Updated</option>
               </select>
@@ -1801,8 +1801,8 @@
         if (preset === 'clear') {
           state.datePreset = '';
         } else {
-          // Default to follow_up if user clicks a chip before picking a type
-          if (!state.dateType) state.dateType = 'follow_up';
+          // Leads are usually reviewed by call date; follow-up remains selectable.
+          if (!state.dateType) state.dateType = 'call';
           state.datePreset = (state.datePreset === preset) ? '' : preset;
         }
         updateDateStripUI();
