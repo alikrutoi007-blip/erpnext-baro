@@ -483,6 +483,97 @@ def get_timeline(repair_job, limit=80):
 # -----------------------------------------------------------------------------
 
 @frappe.whitelist()
+def create_repair_job(payload):
+    """Atomic create: resolves Customer + Contact (non-blocking) + Address + Repair Job.
+    Contact creation never blocks RJ creation - on failure the RJ is created with
+    contact=None and a 'contact-create-failed' warning is returned."""
+    if not frappe.has_permission('Repair Job', 'create'):
+        frappe.throw(_('Not permitted to create Repair Job'), frappe.PermissionError)
+
+    import json as _json
+    if isinstance(payload, str):
+        payload = _json.loads(payload)
+
+    warnings = []
+
+    # Service state validation (defensive - UI should constrain)
+    state = payload.get('service_state')
+    if state not in ('Texas', 'Florida', 'New York', 'New Jersey'):
+        frappe.throw(_("Service state must be one of Texas, Florida, New York, New Jersey"))
+
+    # Required-field minimums (defensive)
+    for required in ('equipment_type', 'symptom', 'urgency'):
+        if not (payload.get(required) or '').strip():
+            frappe.throw(_("{0} is required").format(required.replace('_', ' ').title()))
+
+    phone_norm = normalize_phone(payload.get('caller_phone'))
+    if not phone_norm and not payload.get('customer_name') and not payload.get('customer_id'):
+        frappe.throw(_('Need either a customer or a caller phone'))
+
+    # Customer (no silent fuzzy). Throws on multi-phone-match without force_create_new.
+    customer_id = _resolve_customer(payload, warnings)
+
+    # Contact - non-blocking. RJ is created even if Contact fails.
+    # USER REQUIREMENT 2026-05-21: wrap in try/except, append 'contact-create-failed'
+    # warning on failure, do NOT abort the whole flow.
+    contact_id = None
+    if phone_norm and customer_id:
+        try:
+            contact_id = _ensure_customer_contact(
+                customer_id, phone_norm,
+                first_name=(payload.get('contact_first_name') or None),
+            )
+        except Exception as e:
+            warnings.append({
+                'kind': 'contact-create-failed',
+                'phone': phone_norm,
+                'customer': customer_id,
+                'message': (
+                    f"Could not create or link Contact for phone {phone_norm}: {e}. "
+                    "Repair Job created without contact."
+                ),
+            })
+            contact_id = None
+            # Log for diagnostics (writes to Error Log)
+            frappe.log_error(
+                title='F: contact-create-failed',
+                message=frappe.get_traceback(),
+            )
+
+    # Address (cautious)
+    address_id, address_text, needs_review = _resolve_address(payload, customer_id, warnings)
+
+    # Repair Job
+    doc = frappe.get_doc({
+        'doctype': 'Repair Job',
+        'naming_series': 'RJ-.YYYY.-',
+        'status': 'New',
+        'customer': customer_id,
+        'contact': contact_id,
+        'caller_phone': phone_norm,
+        'business_phone_did': normalize_phone(payload.get('business_phone_did')),
+        'area': (payload.get('area') or '').strip(),
+        'service_state': state,
+        'marketing_source': (payload.get('marketing_source') or '').strip(),
+        'service_address': address_id,
+        'service_address_text': address_text,
+        'address_needs_review': needs_review,
+        'equipment_type': payload['equipment_type'].strip(),
+        'symptom': payload['symptom'].strip(),
+        'urgency': payload['urgency'],
+        'internal_comment': (payload.get('internal_comment') or '').strip() or None,
+    })
+    doc.insert()
+
+    return {
+        'ok': True,
+        'name': doc.name,
+        'doc': doc.as_dict(),
+        'warnings': warnings,
+    }
+
+
+@frappe.whitelist()
 def set_field(repair_job, fieldname, value):
     """Inline-edit a single field on a Repair Job.
 
