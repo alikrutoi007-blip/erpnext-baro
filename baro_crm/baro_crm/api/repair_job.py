@@ -231,6 +231,93 @@ def _ensure_customer_contact(customer_id, phone_norm, first_name=None):
     return contact.name
 
 
+def _resolve_customer(payload, warnings):
+    """Strict priority - no silent fuzzy-link. See spec section 8.2."""
+    # 1. Explicit typeahead pick
+    if payload.get('customer_id'):
+        cid = payload['customer_id']
+        if not frappe.db.exists('Customer', cid):
+            frappe.throw(_("Selected Customer '{0}' no longer exists").format(cid))
+        return cid
+
+    phone_norm = normalize_phone(payload.get('caller_phone'))
+    typed_name = (payload.get('customer_name') or '').strip()
+    typed_name_norm = typed_name.lower()
+    force_create = bool(payload.get('force_create_new'))
+
+    # 2. Phone match (exactly-one required)
+    if phone_norm:
+        matches = _find_customers_by_phone(phone_norm)
+        if len(matches) == 1:
+            cust = next(iter(matches))
+            existing_name = (frappe.db.get_value('Customer', cust, 'customer_name') or '').strip().lower()
+            if typed_name_norm and typed_name_norm != existing_name:
+                warnings.append({
+                    'kind': 'phone-vs-name',
+                    'phone': phone_norm,
+                    'customer': cust,
+                    'message': f"Phone {phone_norm} belongs to existing Customer '{cust}'. Linked to that.",
+                })
+            return cust
+        elif len(matches) > 1:
+            if not force_create:
+                frappe.throw(_(
+                    "Phone {0} matches {1} customers. Pick one from the typeahead "
+                    "or tick 'Create new anyway' to proceed with a new Customer."
+                ).format(phone_norm, len(matches)), title=_('Ambiguous phone match'))
+            warnings.append({
+                'kind': 'phone-multi-match-overridden',
+                'phone': phone_norm,
+                'customers': sorted(matches),
+                'message': f"Created new Customer despite {len(matches)} phone matches.",
+            })
+            # fall through to step 3/4
+
+    # 3. Exact name match (case-insensitive trim)
+    if typed_name_norm:
+        rows = frappe.db.sql_list("""
+            SELECT name FROM `tabCustomer`
+            WHERE LOWER(TRIM(customer_name)) = %s LIMIT 2
+        """, (typed_name_norm,))
+        if len(rows) == 1:
+            return rows[0]
+        if len(rows) > 1:
+            frappe.throw(_("Multiple customers exactly match '{0}'. Pick one from the typeahead.").format(typed_name))
+
+    # 4. Create new (typed name)
+    if typed_name:
+        cust = frappe.get_doc({
+            'doctype': 'Customer',
+            'customer_name': typed_name,
+            'customer_type': 'Company',
+            'customer_group': _get_default_customer_group(),
+            'territory':      _get_default_territory(),
+        }).insert(ignore_permissions=False)
+        warnings.append({
+            'kind': 'customer-created',
+            'customer': cust.name,
+            'message': f"Created new Customer '{typed_name}'.",
+        })
+        return cust.name
+
+    # 5. Unknown caller fallback
+    if phone_norm:
+        cust = frappe.get_doc({
+            'doctype': 'Customer',
+            'customer_name': f'Unknown - {phone_norm}',
+            'customer_type': 'Individual',
+            'customer_group': _get_default_customer_group(),
+            'territory':      _get_default_territory(),
+        }).insert(ignore_permissions=False)
+        warnings.append({
+            'kind': 'unknown-caller',
+            'message': f"No name given; created placeholder Customer 'Unknown - {phone_norm}'.",
+        })
+        return cust.name
+
+    frappe.throw(_('Need either customer_name, customer_id, or caller_phone'))
+
+
 # -----------------------------------------------------------------------------
 # Read endpoints
 # -----------------------------------------------------------------------------
