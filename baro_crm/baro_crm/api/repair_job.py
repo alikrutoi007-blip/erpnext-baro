@@ -91,6 +91,147 @@ STATES = ["Texas", "Florida", "New York", "New Jersey"]
 
 
 # -----------------------------------------------------------------------------
+# F helpers — safe defaults, phone normalization, address parsing, dedup
+# -----------------------------------------------------------------------------
+
+def _get_default_customer_group():
+    """Non-group Customer Group. Prefer 'Commercial'. Throws if no non-group exists."""
+    if (frappe.db.exists('Customer Group', 'Commercial')
+            and not frappe.db.get_value('Customer Group', 'Commercial', 'is_group')):
+        return 'Commercial'
+    rows = frappe.db.sql_list("""
+        SELECT name FROM `tabCustomer Group`
+        WHERE is_group = 0 ORDER BY lft LIMIT 1
+    """)
+    if not rows:
+        frappe.throw(_('No non-group Customer Group exists. Create one in Setup -> Customer Group.'))
+    return rows[0]
+
+
+def _get_default_territory():
+    """Non-group Territory. Prefer 'Commercial'. Throws if no non-group exists."""
+    if (frappe.db.exists('Territory', 'Commercial')
+            and not frappe.db.get_value('Territory', 'Commercial', 'is_group')):
+        return 'Commercial'
+    rows = frappe.db.sql_list("""
+        SELECT name FROM `tabTerritory`
+        WHERE is_group = 0 ORDER BY lft LIMIT 1
+    """)
+    if not rows:
+        frappe.throw(_('No non-group Territory exists.'))
+    return rows[0]
+
+
+def normalize_phone(raw):
+    """Always returns +<digits> or ''. Never returns the raw string.
+
+    Examples:
+        '+1 (212) 555-0101' -> '+12125550101'
+        '212-555-0101'      -> '+12125550101'
+        '+44 20 7946 0958'  -> '+442079460958'
+        ''                  -> ''
+    """
+    if not raw:
+        return ''
+    import re
+    digits = re.sub(r'\D', '', str(raw))
+    if not digits:
+        return ''
+    if len(digits) == 10:
+        return '+1' + digits
+    if len(digits) == 11 and digits.startswith('1'):
+        return '+' + digits
+    return '+' + digits
+
+
+def _parse_address_text(raw):
+    """Conservative. 'Complete' only when street# + city + state are all parsed."""
+    import re
+    m = re.match(
+        r'^(?P<street>\d+\s+[^,]+),\s*(?P<city>[^,]+),\s*(?P<state>[A-Z]{2})\s*(?P<zip>\d{5})?',
+        raw.strip(), re.IGNORECASE,
+    )
+    if not m:
+        return {'complete': False}
+    return {
+        'complete': True,
+        'street': m.group('street').strip(),
+        'city': m.group('city').strip(),
+        'state': m.group('state').upper(),
+        'zip': m.group('zip'),
+    }
+
+
+def _find_customers_by_phone(phone_norm):
+    """Set of distinct Customer IDs reachable from this phone.
+    Sources: Contact.mobile_no, Contact.phone, Repair Job.caller_phone,
+    Customer.normalized_phone (when sub-project K's migration adds the column).
+    """
+    if not phone_norm:
+        return set()
+    cust_ids = set()
+
+    # (1) Contact.mobile_no / Contact.phone -> Dynamic Link -> Customer
+    contacts = frappe.db.sql_list("""
+        SELECT DISTINCT name FROM `tabContact`
+        WHERE mobile_no = %s OR phone = %s
+    """, (phone_norm, phone_norm))
+    if contacts:
+        placeholders = ', '.join(['%s'] * len(contacts))
+        linked = frappe.db.sql_list(f"""
+            SELECT DISTINCT link_name FROM `tabDynamic Link`
+            WHERE link_doctype = 'Customer'
+              AND parent IN ({placeholders})
+        """, contacts)
+        cust_ids.update(linked)
+
+    # (2) Existing Repair Job caller_phone -> its Customer
+    rj_customers = frappe.db.sql_list("""
+        SELECT DISTINCT customer FROM `tabRepair Job`
+        WHERE caller_phone = %s AND customer IS NOT NULL AND customer != ''
+    """, (phone_norm,))
+    cust_ids.update(rj_customers)
+
+    # (3) Future K: Customer.normalized_phone. Frappe v15: has_column(doctype, fieldname),
+    # doctype name (no "tab" prefix). Returns False for unknown cols (no raise).
+    if frappe.db.has_column('Customer', 'normalized_phone'):
+        cust_ids.update(frappe.db.sql_list("""
+            SELECT name FROM `tabCustomer` WHERE normalized_phone = %s
+        """, (phone_norm,)))
+
+    return cust_ids
+
+
+def _ensure_customer_contact(customer_id, phone_norm, first_name=None):
+    """Idempotent. Ensures the Customer has a Contact carrying this phone.
+    Strengthens future phone-based dedup. Returns the Contact name (existing or new)."""
+    if not customer_id or not phone_norm:
+        return None
+    existing = frappe.db.sql_list("""
+        SELECT DISTINCT c.name FROM `tabContact` c
+        JOIN `tabDynamic Link` dl ON dl.parent = c.name
+        WHERE dl.link_doctype = 'Customer' AND dl.link_name = %s
+          AND (c.mobile_no = %s OR c.phone = %s)
+        LIMIT 1
+    """, (customer_id, phone_norm, phone_norm))
+    if existing:
+        return existing[0]
+
+    contact = frappe.get_doc({
+        'doctype': 'Contact',
+        'first_name': first_name or 'Primary',
+        'mobile_no': phone_norm,
+        'phone_nos': [{
+            'phone': phone_norm,
+            'is_primary_phone': 1,
+            'is_primary_mobile_no': 1,
+        }],
+        'links': [{'link_doctype': 'Customer', 'link_name': customer_id}],
+    }).insert(ignore_permissions=False)
+    return contact.name
+
+
+# -----------------------------------------------------------------------------
 # Read endpoints
 # -----------------------------------------------------------------------------
 
