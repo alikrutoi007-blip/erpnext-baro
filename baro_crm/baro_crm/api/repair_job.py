@@ -94,6 +94,31 @@ STATES = ["Texas", "Florida", "New York", "New Jersey"]
 # F helpers — safe defaults, phone normalization, address parsing, dedup
 # -----------------------------------------------------------------------------
 
+def _required_repair_job_defaults(payload):
+    """Backfill mandatory legacy fields that the minimal cockpit drawer hides."""
+    state = (payload.get('service_state') or '').strip()
+    equipment = (payload.get('equipment_type') or '').strip()
+    symptom = (payload.get('symptom') or '').strip()
+    urgency = (payload.get('urgency') or '').strip()
+
+    area = (
+        (payload.get('area') or '').strip()
+        or (payload.get('city_area') or '').strip()
+        or (f"USA, {state}" if state else "USA")
+    )
+    purpose = (
+        (payload.get('purpose_of_call') or '').strip()
+        or symptom
+        or f"{equipment} service request".strip()
+    )
+    summary_bits = [bit for bit in (urgency, equipment, symptom) if bit]
+    service_summary = (
+        (payload.get('service_summary') or '').strip()
+        or " - ".join(summary_bits)
+        or "Repair service request"
+    )
+    return area, purpose, service_summary
+
 def _get_default_customer_group():
     """Non-group Customer Group. Prefer 'Commercial'. Throws if no non-group exists."""
     if (frappe.db.exists('Customer Group', 'Commercial')
@@ -562,6 +587,8 @@ def create_repair_job(payload):
     # Address (cautious)
     address_id, address_text, needs_review = _resolve_address(payload, customer_id, warnings)
 
+    area, purpose_of_call, service_summary = _required_repair_job_defaults(payload)
+
     # Repair Job
     doc = frappe.get_doc({
         'doctype': 'Repair Job',
@@ -571,7 +598,7 @@ def create_repair_job(payload):
         'contact': contact_id,
         'caller_phone': phone_norm,
         'business_phone_did': normalize_phone(payload.get('business_phone_did')),
-        'area': (payload.get('area') or '').strip(),
+        'area': area,
         'service_state': state,
         'marketing_source': (payload.get('marketing_source') or '').strip(),
         'service_address': address_id,
@@ -579,6 +606,8 @@ def create_repair_job(payload):
         'address_needs_review': needs_review,
         'equipment_type': payload['equipment_type'].strip(),
         'symptom': payload['symptom'].strip(),
+        'purpose_of_call': purpose_of_call,
+        'service_summary': service_summary,
         'urgency': payload['urgency'],
         'internal_comment': (payload.get('internal_comment') or '').strip() or None,
     })
