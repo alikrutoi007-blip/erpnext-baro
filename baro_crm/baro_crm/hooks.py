@@ -50,6 +50,15 @@ role_home_page = {
 }
 
 # -----------------------------------------------------------------------------
+# Install / migrate hooks
+# Ensures the Baro Dispatcher role + Custom DocPerm rows exist after every
+# bench migrate so dispatchers always have the minimum perms needed to drive
+# /repair-jobs end-to-end. Idempotent — safe to run on every migrate.
+# -----------------------------------------------------------------------------
+after_install = "baro_crm.install.after_install"
+after_migrate = "baro_crm.install.after_migrate"
+
+# -----------------------------------------------------------------------------
 # Permissions / boot — no extra global hooks for MVP
 # -----------------------------------------------------------------------------
 
