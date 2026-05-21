@@ -376,6 +376,40 @@ def _resolve_address(payload, customer_id, warnings):
 # Read endpoints
 # -----------------------------------------------------------------------------
 
+def _initials(name):
+    parts = (name or "").split()
+    if not parts:
+        return "U"
+    if len(parts) == 1:
+        return parts[0][:2].upper()
+    return (parts[0][0] + parts[1][0]).upper()
+
+
+@frappe.whitelist()
+def get_boot_context():
+    """Runtime context for /repair-jobs; avoids relying on page Jinja meta."""
+    if frappe.session.user in ("Guest", None, ""):
+        frappe.throw(_("Login required"), frappe.PermissionError)
+
+    user_doc = frappe.db.get_value(
+        "User",
+        frappe.session.user,
+        ["full_name", "user_image", "username"],
+        as_dict=True,
+    ) or {}
+    full_name = user_doc.get("full_name") or frappe.session.user
+    company = frappe.db.get_single_value("Global Defaults", "default_company") or "Baro Service LLC"
+    return {
+        "user": frappe.session.user,
+        "user_full_name": full_name,
+        "user_initials": _initials(full_name),
+        "user_image": user_doc.get("user_image") or "",
+        "company": company,
+        "can_write_repair_job": 1 if frappe.has_permission("Repair Job", "write") else 0,
+        "can_read_repair_job": 1 if frappe.has_permission("Repair Job", "read") else 0,
+    }
+
+
 @frappe.whitelist()
 def get_jobs(state=None, status=None, search=None,
              limit=500, offset=0, date_from=None):

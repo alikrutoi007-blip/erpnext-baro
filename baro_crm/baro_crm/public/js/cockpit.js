@@ -262,6 +262,7 @@
   }
 
   const api = {
+    bootContext: () => call('baro_crm.api.repair_job.get_boot_context'),
     getJobs: (filters = {}) => call('baro_crm.api.repair_job.get_jobs', filters),
     stateCounts: () => call('baro_crm.api.repair_job.get_state_counts'),
     timeline: (repair_job) => call('baro_crm.api.repair_job.get_timeline', { repair_job }),
@@ -1769,6 +1770,15 @@
   async function boot() {
     state.canWrite = meta('cockpit_can_write', '0') === '1';
     state.user = meta('cockpit_user', '');
+    try {
+      const ctx = await api.bootContext();
+      if (ctx) {
+        state.canWrite = String(ctx.can_write_repair_job) === '1';
+        state.user = ctx.user || state.user;
+      }
+    } catch (e) {
+      console.warn('Boot context failed; using page meta fallback', e);
+    }
     renderShell();
     bindEvents();
     setupRealtime();
