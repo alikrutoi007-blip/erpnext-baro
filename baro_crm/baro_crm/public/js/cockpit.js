@@ -1540,7 +1540,7 @@
         return;
       }
 
-      const popItem = e.target.closest('.pop-item[data-status]');
+      const popItem = e.target.closest('.pop-item[data-action]:not([data-drag-action])');
       if (popItem) {
         applyAction(state.statusPopoverFor, popItem.dataset.action);
         return;
