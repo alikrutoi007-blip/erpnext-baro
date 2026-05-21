@@ -580,16 +580,31 @@ body.is-dragging .baro-cockpit .kanban-col-body.drop-valid:empty::after {
 .baro-cockpit .create-drawer {
   position: fixed;
   top: 0; right: 0; bottom: 0;
+  height: 100dvh;
   width: 560px; max-width: 95vw;
   background: var(--surface);
   box-shadow: var(--shadow-lg);
   display: flex; flex-direction: column;
+  overflow: hidden;
   z-index: 200;
   transform: translateX(100%);
   transition: transform .25s ease-out;
 }
 .baro-cockpit .create-drawer.open { transform: translateX(0); }
-.baro-cockpit .create-drawer .insp-body { padding-bottom: 8px; }
+.baro-cockpit .create-drawer .insp-head,
+.baro-cockpit .create-drawer .insp-tabs,
+.baro-cockpit .create-drawer .insp-actionbar { flex: 0 0 auto; }
+.baro-cockpit .create-drawer .insp-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 18px;
+}
+.baro-cockpit .create-drawer .insp-actionbar {
+  position: relative;
+  left: auto; right: auto; bottom: auto;
+  z-index: 2;
+}
 .baro-cockpit #createRepairJobForm { display: grid; gap: 14px; padding-top: 4px; }
 .baro-cockpit #createRepairJobForm .field-row { display: grid; gap: 4px; }
 .baro-cockpit #createRepairJobForm label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
