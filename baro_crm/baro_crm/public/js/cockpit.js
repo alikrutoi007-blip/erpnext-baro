@@ -157,7 +157,9 @@
     user: '',
     timeline: null,        // cache of last loaded timeline
     statusPopoverFor: null,
+    statusPopoverTrigger: null,
     timelineRefreshTimer: null,
+    inspectorTrapUninstall: null,
   };
 
   const $  = (sel, root = document) => root.querySelector(sel);
@@ -260,6 +262,47 @@
     changeStatus: (repair_job, action) => call('baro_crm.api.repair_job.change_status', { repair_job, action }),
     searchLink: (doctype, query) => call('baro_crm.api.repair_job.search_link', { doctype, query }),
   };
+
+  // ---------------------------------------------------------------------------
+  // Section 15b: Shared focus-trap helper (used by inspector and F drawer)
+  // ---------------------------------------------------------------------------
+  function installFocusTrap(rootEl, { initialFocus = null } = {}) {
+    if (!rootEl) return () => {};
+
+    function focusableNodes() {
+      return Array.from(rootEl.querySelectorAll([
+        'a[href]', 'button:not([disabled])', 'input:not([disabled])',
+        'select:not([disabled])', 'textarea:not([disabled])',
+        '[tabindex]:not([tabindex="-1"])',
+      ].join(','))).filter(el => el.offsetParent !== null);
+    }
+
+    function onKey(e) {
+      if (e.key !== 'Tab') return;
+      const nodes = focusableNodes();
+      if (nodes.length === 0) { e.preventDefault(); return; }
+      const first = nodes[0];
+      const last = nodes[nodes.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener('keydown', onKey);
+
+    setTimeout(() => {
+      const target = initialFocus || focusableNodes()[0] || rootEl;
+      try { target.focus(); } catch (e) {}
+    }, 30);
+
+    return function uninstall() {
+      document.removeEventListener('keydown', onKey);
+    };
+  }
 
   // ---------------------------------------------------------------------------
   // Section 16: Drag/drop — pure helpers
@@ -965,7 +1008,12 @@
     insp.setAttribute('aria-hidden', 'false');
     $('#inspOverlay').classList.add('open');
     $('#inspOverlay').setAttribute('aria-hidden', 'false');
-    setTimeout(() => $('#inspClose').focus(), 30);
+
+    // Install focus trap (audit bug 1.6). Previous trap, if any, cleared first.
+    if (state.inspectorTrapUninstall) state.inspectorTrapUninstall();
+    state.inspectorTrapUninstall = installFocusTrap(insp, {
+      initialFocus: $('#inspClose') || null,
+    });
   }
 
   function closeInspector() {
