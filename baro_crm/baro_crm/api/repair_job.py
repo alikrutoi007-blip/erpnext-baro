@@ -440,26 +440,29 @@ def _resolve_date_preset(preset, field):
         return []
     today = frappe.utils.getdate(frappe.utils.nowdate())
 
-    def day_bounds(d):
-        return [f"{d} 00:00:00", f"{d} 23:59:59.999999"]
+    def day_start(d):
+        return f"{d} 00:00:00"
+
+    def next_day_start(d):
+        return day_start(frappe.utils.add_days(d, 1))
 
     if preset == "today":
-        return [[field, "between", day_bounds(today)]]
+        return [[field, ">=", day_start(today)], [field, "<", next_day_start(today)]]
     if preset == "yesterday":
         d = frappe.utils.add_days(today, -1)
-        return [[field, "between", day_bounds(d)]]
+        return [[field, ">=", day_start(d)], [field, "<", next_day_start(d)]]
     if preset == "tomorrow":
         d = frappe.utils.add_days(today, 1)
-        return [[field, "between", day_bounds(d)]]
+        return [[field, ">=", day_start(d)], [field, "<", next_day_start(d)]]
     if preset == "this_week":
         # Mon..Sun anchored on `today`. weekday(): Mon=0..Sun=6
         wd = today.weekday()
         monday = frappe.utils.add_days(today, -wd)
-        sunday = frappe.utils.add_days(monday, 6)
-        return [[field, "between", [day_bounds(monday)[0], day_bounds(sunday)[1]]]]
+        next_monday = frappe.utils.add_days(monday, 7)
+        return [[field, ">=", day_start(monday)], [field, "<", day_start(next_monday)]]
     if preset == "overdue":
         # Strictly past dates; only set rows (NULLs excluded by Frappe by default for <)
-        return [[field, "<", day_bounds(today)[0]], [field, "is", "set"]]
+        return [[field, "<", day_start(today)], [field, "is", "set"]]
     if preset == "no_date":
         return [[field, "is", "not set"]]
     return []
