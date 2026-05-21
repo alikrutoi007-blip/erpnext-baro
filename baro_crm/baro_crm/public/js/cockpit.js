@@ -1392,13 +1392,21 @@
 
   function extractError(e) {
     if (!e) return 'unknown error';
-    if (e.message) return e.message;
-    if (e._server_messages) {
+    const raw = e._server_messages || (e.responseJSON && e.responseJSON._server_messages);
+    if (raw) {
       try {
-        const msgs = JSON.parse(e._server_messages);
-        return JSON.parse(msgs[0]).message || msgs[0];
-      } catch { return e._server_messages; }
+        const msgs = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        const first = Array.isArray(msgs) ? msgs[0] : msgs;
+        if (typeof first === 'string') {
+          try { return JSON.parse(first).message || first; }
+          catch { return first; }
+        }
+        if (first && typeof first === 'object') return first.message || JSON.stringify(first);
+      } catch { /* fall through */ }
+      return String(raw);
     }
+    if (e.exception) return String(e.exception);
+    if (e.message) return e.message;
     return String(e);
   }
 
