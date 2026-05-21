@@ -32,8 +32,22 @@ fixtures = [
                 "address_needs_review",
             ]],
         ],
-    }
+    },
+    {
+        "dt": "Role",
+        "filters": [["name", "in", ["Baro Dispatcher"]]],
+    },
 ]
+
+# -----------------------------------------------------------------------------
+# Role-based default landing page
+# Users with the Baro Dispatcher role land on /repair-jobs after login instead
+# of /app. Add more roles here as needed — Frappe picks the first match from
+# the user's enabled roles.
+# -----------------------------------------------------------------------------
+role_home_page = {
+    "Baro Dispatcher": "/repair-jobs",
+}
 
 # -----------------------------------------------------------------------------
 # Permissions / boot — no extra global hooks for MVP
