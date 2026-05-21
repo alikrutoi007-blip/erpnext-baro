@@ -162,6 +162,14 @@
     inspectorTrapUninstall: null,
   };
 
+  // O(1) lookup helper — keep state.jobs and state.jobsById in sync via setJobs()
+  state.jobsById = new Map();
+  function setJobs(jobs) {
+    state.jobs = jobs || [];
+    state.jobsById = new Map(state.jobs.map(j => [j.name, j]));
+  }
+  function jobById(id) { return state.jobsById.get(id) || null; }
+
   const $  = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
@@ -492,7 +500,7 @@
     const targetCol = evt.to ? evt.to.dataset.column : null;
     const cardStatus = evt.item.dataset.status;
     const cardId = evt.item.dataset.id;
-    const job = state.jobs.find(j => j.name === cardId);
+    const job = jobById(cardId);
     const customer = (job && job.customer) || cardId;
 
     if (!targetCol) {
@@ -526,7 +534,7 @@
   async function runHappyPath(evt, cardId, action) {
     try {
       const r = await api.changeStatus(cardId, action.action);
-      const job = state.jobs.find(j => j.name === cardId);
+      const job = jobById(cardId);
       if (job) job.status = r.status;
       renderKanban();
       api.stateCounts().then(c => { state.stateCounts = c; renderStateTabs(); });
@@ -541,7 +549,7 @@
   async function runHappyPathFromMulti(cardId, action) {
     try {
       const r = await api.changeStatus(cardId, action.action);
-      const job = state.jobs.find(j => j.name === cardId);
+      const job = jobById(cardId);
       if (job) job.status = r.status;
       renderKanban();
       api.stateCounts().then(c => { state.stateCounts = c; renderStateTabs(); });
@@ -624,7 +632,7 @@
 
     try {
       const r = await api.changeStatus(cardId, action.action);
-      const job = state.jobs.find(j => j.name === cardId);
+      const job = jobById(cardId);
       if (job) job.status = r.status;
       renderKanban();
       api.stateCounts().then(c => { state.stateCounts = c; renderStateTabs(); });
@@ -967,7 +975,7 @@
         api.getJobs(args),
         refreshCounts ? api.stateCounts() : Promise.resolve(state.stateCounts),
       ]);
-      state.jobs = jobs || [];
+      setJobs(jobs || []);
       if (counts) state.stateCounts = counts;
       renderStateTabs();
       renderTable();
@@ -984,7 +992,7 @@
   let lastFocusedBeforeInspector = null;
 
   async function openInspector(id) {
-    const j = state.jobs.find(x => x.name === id);
+    const j = jobById(id);
     if (!j) return;
     if (!state.selectedId) lastFocusedBeforeInspector = document.activeElement;
     state.selectedId = id;
@@ -1346,7 +1354,7 @@
         renderTable();
         if (state.activeTab === 'timeline') {
           const items = await loadTimeline(job);
-          const jobObj = state.jobs.find(x => x.name === job);
+          const jobObj = jobById(job);
           if (jobObj && state.selectedId === job) $('#inspBody').innerHTML = renderTimeline(jobObj, items);
         }
         toast(`Saved · ${m.label}`, 'ok');
@@ -1385,12 +1393,12 @@
   }
 
   function readJobField(jobName, fieldname) {
-    const j = state.jobs.find(x => x.name === jobName);
+    const j = jobById(jobName);
     return j ? j[fieldname] : null;
   }
 
   function writeJobField(jobName, fieldname, value) {
-    const j = state.jobs.find(x => x.name === jobName);
+    const j = jobById(jobName);
     if (j) j[fieldname] = value;
   }
 
@@ -1424,7 +1432,7 @@
     }
     const pop = $('#statusPopover');
     state.statusPopoverFor = jobId;
-    const job = state.jobs.find(x => x.name === jobId);
+    const job = jobById(jobId);
     if (!job) return;
 
     const r = targetEl.getBoundingClientRect();
@@ -1469,7 +1477,7 @@
       writeJobField(jobId, 'status', r.status);
       renderTable();
       if (state.selectedId === jobId) {
-        const j = state.jobs.find(x => x.name === jobId);
+        const j = jobById(jobId);
         if (j) {
           updateStatusPill(j.status);
           updateAdvanceButton(j);
@@ -1505,7 +1513,7 @@
       await api.addComment(state.selectedId, text);
       box.value = '';
       const items = await loadTimeline(state.selectedId);
-      const j = state.jobs.find(x => x.name === state.selectedId);
+      const j = jobById(state.selectedId);
       if (j) $('#inspBody').innerHTML = renderTimeline(j, items);
       toast('Comment added', 'ok');
     } catch (e) {
@@ -1543,7 +1551,7 @@
         loadAll({ refreshCounts: false });
         if (state.selectedId === data.name && state.activeTab === 'timeline') {
           loadTimeline(data.name).then(items => {
-            const j = state.jobs.find(x => x.name === data.name);
+            const j = jobById(data.name);
             if (j) $('#inspBody').innerHTML = renderTimeline(j, items);
           });
         }
@@ -1666,7 +1674,7 @@
       t.setAttribute('aria-selected', 'true');
       state.activeTab = t.dataset.tab;
       if (state.selectedId) {
-        const j = state.jobs.find(x => x.name === state.selectedId);
+        const j = jobById(state.selectedId);
         if (j) renderInspBody(j);
       }
     });
