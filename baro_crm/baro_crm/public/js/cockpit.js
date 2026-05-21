@@ -856,41 +856,43 @@
       return;
     }
 
-    tbody.innerHTML = state.jobs.map(j => {
-      const s = STATUS_MAP[j.status] || { color: 'slate' };
-      const techHtml = j.technician
-        ? `<div class="tech-cell"><div class="avatar ${colorClass(j.technician)}" aria-hidden="true">${escapeHtml(initials(j.technician))}</div><span>${escapeHtml(j.technician)}</span></div>`
-        : `<div class="tech-cell empty">Unassigned</div>`;
-      const customer = j.customer || '(no customer)';
-      const urgencyCls = (j.urgency || 'Unknown').replace(/\s+/g, '-');
-      return `
-        <tr data-id="${escapeHtml(j.name)}" class="${state.selectedId === j.name ? 'selected' : ''}" tabindex="0" role="button" aria-label="Open ${escapeHtml(customer)} — ${escapeHtml(j.status || 'New')}">
-          <td>
-            <div class="customer-cell">
-              <div class="avatar ${colorClass(customer)}" aria-hidden="true">${escapeHtml(initials(customer))}</div>
-              <div class="col">
-                <strong>${escapeHtml(customer)}</strong>
-                <small class="id-cell">${escapeHtml(j.name)}</small>
-              </div>
+    tbody.innerHTML = state.jobs.map(renderRow).join('');
+  }
+
+  function renderRow(j) {
+    const s = STATUS_MAP[j.status] || { color: 'slate' };
+    const techHtml = j.technician
+      ? `<div class="tech-cell"><div class="avatar ${colorClass(j.technician)}" aria-hidden="true">${escapeHtml(initials(j.technician))}</div><span>${escapeHtml(j.technician)}</span></div>`
+      : `<div class="tech-cell empty">Unassigned</div>`;
+    const customer = j.customer || '(no customer)';
+    const urgencyCls = (j.urgency || 'Unknown').replace(/\s+/g, '-');
+    return `
+      <tr data-id="${escapeHtml(j.name)}" class="${state.selectedId === j.name ? 'selected' : ''}" tabindex="0" role="button" aria-label="Open ${escapeHtml(customer)} — ${escapeHtml(j.status || 'New')}">
+        <td>
+          <div class="customer-cell">
+            <div class="avatar ${colorClass(customer)}" aria-hidden="true">${escapeHtml(initials(customer))}</div>
+            <div class="col">
+              <strong>${escapeHtml(customer)}</strong>
+              <small class="id-cell">${escapeHtml(j.name)}</small>
             </div>
-          </td>
-          <td>
-            <button class="status-pill s-${s.color}" type="button" data-status-btn data-stop aria-label="Status ${escapeHtml(j.status || '')}, click to change" aria-haspopup="listbox">
-              <span class="dot" aria-hidden="true"></span>
-              <span>${escapeHtml(j.status || 'New')}</span>
-              <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-          </td>
-          <td><span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;">${escapeHtml(j.caller_phone || '')}</span></td>
-          <td>${escapeHtml(j.area || '')}</td>
-          <td>${j.service_state ? `<span class="source-tag"><span class="dot" aria-hidden="true"></span>${escapeHtml(j.service_state)}</span>` : '<span style="color:var(--text-faint);font-style:italic;">—</span>'}</td>
-          <td>${j.marketing_source ? `<span class="source-tag"><span class="dot" aria-hidden="true"></span>${escapeHtml(j.marketing_source)}</span>` : ''}</td>
-          <td><div class="equipment-cell"><span class="urg ${escapeHtml(urgencyCls)}" aria-hidden="true"></span><span class="sr-only">Urgency ${escapeHtml(j.urgency || 'unknown')}.</span>${escapeHtml(j.equipment_type || '')}</div></td>
-          <td>${techHtml}</td>
-          <td><div class="time-cell">${escapeHtml(formatDateTime(j.modified))}<small>${escapeHtml(formatRelativeTime(j.modified))}</small></div></td>
-        </tr>
-      `;
-    }).join('');
+          </div>
+        </td>
+        <td>
+          <button class="status-pill s-${s.color}" type="button" data-status-btn data-stop aria-label="Status ${escapeHtml(j.status || '')}, click to change" aria-haspopup="listbox">
+            <span class="dot" aria-hidden="true"></span>
+            <span>${escapeHtml(j.status || 'New')}</span>
+            <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+        </td>
+        <td><span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;">${escapeHtml(j.caller_phone || '')}</span></td>
+        <td>${escapeHtml(j.area || '')}</td>
+        <td>${j.service_state ? `<span class="source-tag"><span class="dot" aria-hidden="true"></span>${escapeHtml(j.service_state)}</span>` : '<span style="color:var(--text-faint);font-style:italic;">—</span>'}</td>
+        <td>${j.marketing_source ? `<span class="source-tag"><span class="dot" aria-hidden="true"></span>${escapeHtml(j.marketing_source)}</span>` : ''}</td>
+        <td><div class="equipment-cell"><span class="urg ${escapeHtml(urgencyCls)}" aria-hidden="true"></span><span class="sr-only">Urgency ${escapeHtml(j.urgency || 'unknown')}.</span>${escapeHtml(j.equipment_type || '')}</div></td>
+        <td>${techHtml}</td>
+        <td><div class="time-cell">${escapeHtml(formatDateTime(j.modified))}<small>${escapeHtml(formatRelativeTime(j.modified))}</small></div></td>
+      </tr>
+    `;
   }
 
   // ---------------------------------------------------------------------------
@@ -917,40 +919,42 @@
             <span class="kc-count">${items.length}</span>
           </div>
           <div class="kanban-col-body" data-column="${escapeHtml(col.title)}">
-            ${items.map(j => {
-              const s = STATUS_MAP[j.status] || { color: 'slate' };
-              const customerLabel = (j.customer || '').replace(/^DEMO\s*-\s*/i, '');
-              return `
-                <div class="kanban-card" data-id="${escapeHtml(j.name)}" data-status="${escapeHtml(j.status)}">
-                  <span class="kc-handle" data-stop aria-label="Drag ${escapeHtml(customerLabel || j.name)}" tabindex="-1">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                      <circle cx="9" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/>
-                      <circle cx="15" cy="6" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
-                    </svg>
-                  </span>
-                  <div class="kc-body">
-                    <div class="kc-id">${escapeHtml(j.name)}</div>
-                    <div class="kc-title">${escapeHtml(customerLabel || j.name)}</div>
-                    <div class="kc-meta">
-                      <span class="status-pill s-${s.color}" data-stop><span class="dot" aria-hidden="true"></span>${escapeHtml(j.status)}</span>
-                    </div>
-                    <div class="kc-meta" style="margin-top:6px;">
-                      ${escapeHtml(j.equipment_type || '—')} • ${escapeHtml(j.service_state || j.area || '—')}
-                    </div>
-                    <div class="kc-foot">
-                      ${j.technician
-                        ? `<div class="avatar ${colorClass(j.technician)}" aria-hidden="true">${escapeHtml(initials(j.technician))}</div><span style="font-size:11.5px;color:var(--text-muted);">${escapeHtml(j.technician)}</span>`
-                        : `<span style="font-size:11px;color:var(--text-faint);font-style:italic;">Unassigned</span>`}
-                      <small>${escapeHtml(formatRelativeTime(j.modified))}</small>
-                    </div>
-                  </div>
-                </div>`;
-            }).join('')}
+            ${items.map(kanbanCardHtml).join('')}
           </div>
         </div>
       `;
     }).join('');
     initDragDrop();
+  }
+
+  function kanbanCardHtml(j) {
+    const s = STATUS_MAP[j.status] || { color: 'slate' };
+    const customerLabel = (j.customer || '').replace(/^DEMO\s*-\s*/i, '');
+    return `
+      <div class="kanban-card" data-id="${escapeHtml(j.name)}" data-status="${escapeHtml(j.status)}">
+        <span class="kc-handle" data-stop aria-label="Drag ${escapeHtml(customerLabel || j.name)}" title="Drag to move" tabindex="-1">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <circle cx="9" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/>
+            <circle cx="15" cy="6" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
+          </svg>
+        </span>
+        <div class="kc-body">
+          <div class="kc-id">${escapeHtml(j.name)}</div>
+          <div class="kc-title">${escapeHtml(customerLabel || j.name)}</div>
+          <div class="kc-meta">
+            <span class="status-pill s-${s.color}" data-stop><span class="dot" aria-hidden="true"></span>${escapeHtml(j.status)}</span>
+          </div>
+          <div class="kc-meta" style="margin-top:6px;">
+            ${escapeHtml(j.equipment_type || '—')} • ${escapeHtml(j.service_state || j.area || '—')}
+          </div>
+          <div class="kc-foot">
+            ${j.technician
+              ? `<div class="avatar ${colorClass(j.technician)}" aria-hidden="true">${escapeHtml(initials(j.technician))}</div><span style="font-size:11.5px;color:var(--text-muted);">${escapeHtml(j.technician)}</span>`
+              : `<span style="font-size:11px;color:var(--text-faint);font-style:italic;">Unassigned</span>`}
+            <small>${escapeHtml(formatRelativeTime(j.modified))}</small>
+          </div>
+        </div>
+      </div>`;
   }
 
   // ---------------------------------------------------------------------------
