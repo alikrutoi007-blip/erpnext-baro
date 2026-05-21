@@ -318,6 +318,35 @@ def _resolve_customer(payload, warnings):
     frappe.throw(_('Need either customer_name, customer_id, or caller_phone'))
 
 
+def _resolve_address(payload, customer_id, warnings):
+    """Only create an Address doc when text parses into street + city + state
+    (ZIP optional). Otherwise store raw text on the Repair Job + flag for review."""
+    raw = (payload.get('service_address') or '').strip()
+    if not raw:
+        return None, None, 0
+
+    parsed = _parse_address_text(raw)
+    if parsed.get('complete'):
+        addr = frappe.get_doc({
+            'doctype': 'Address',
+            'address_title': (payload.get('customer_name') or customer_id or 'Repair Job'),
+            'address_type': 'Service',
+            'address_line1': parsed['street'],
+            'city': parsed['city'],
+            'state': parsed.get('state'),
+            'pincode': parsed.get('zip'),
+            'country': 'United States',
+            'links': [{'link_doctype': 'Customer', 'link_name': customer_id}] if customer_id else [],
+        }).insert()
+        return addr.name, raw, 0
+
+    warnings.append({
+        'kind': 'address-incomplete',
+        'message': "Address looks incomplete - stored as raw text on the job. Review and create a proper Address later.",
+    })
+    return None, raw, 1
+
+
 # -----------------------------------------------------------------------------
 # Read endpoints
 # -----------------------------------------------------------------------------
