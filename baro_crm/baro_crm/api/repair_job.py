@@ -352,13 +352,26 @@ def _resolve_address(payload, customer_id, warnings):
 # -----------------------------------------------------------------------------
 
 @frappe.whitelist()
-def get_jobs(state=None, status=None, search=None, limit=200):
-    """Return Repair Job rows for the cockpit list, filtered server-side."""
+def get_jobs(state=None, status=None, search=None,
+             limit=500, offset=0, date_from=None):
+    """Paginated list. Returns {jobs, offset, limit, total?, has_more}.
+    total is None when search is active (frappe.db.count doesn't honor or_filters)."""
+    try:
+        limit = max(1, min(int(limit), 2000))
+    except (TypeError, ValueError):
+        limit = 500
+    try:
+        offset = max(0, int(offset))
+    except (TypeError, ValueError):
+        offset = 0
+
     filters = {}
     if state and state != "All":
         filters["service_state"] = state
     if status:
         filters["status"] = status
+    if date_from:
+        filters["call_datetime"] = [">=", date_from]
 
     or_filters = None
     if search:
@@ -372,20 +385,26 @@ def get_jobs(state=None, status=None, search=None, limit=200):
             ["name", "like", s],
         ]
 
-    try:
-        limit = max(1, min(int(limit), 500))
-    except (TypeError, ValueError):
-        limit = 200
-
     rows = frappe.get_list(
         "Repair Job",
-        fields=LIST_FIELDS,
+        fields=LIST_FIELDS + ["service_address_text", "address_needs_review"],
         filters=filters,
         or_filters=or_filters,
         order_by="modified desc",
+        limit_start=offset,
         limit_page_length=limit,
     )
-    return rows
+
+    result = {"jobs": rows, "offset": offset, "limit": limit}
+    if or_filters:
+        # frappe.db.count doesn't honor or_filters - return cheap proxy
+        result["has_more"] = len(rows) == limit
+        result["total"] = None
+    else:
+        total = frappe.db.count("Repair Job", filters=filters)
+        result["total"] = total
+        result["has_more"] = (offset + len(rows)) < total
+    return result
 
 
 @frappe.whitelist()
