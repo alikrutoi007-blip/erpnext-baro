@@ -921,8 +921,14 @@
       { title: 'Money & Care',  keys: ['Invoice Sent','Paid','Warranty Active','Closed'] },
       { title: 'Out',           keys: ['Lost','Spam','Unrelated'] },
     ];
+    // Single O(n) pass to bucket jobs by status — avoids 5x filter scans.
+    const byStatus = new Map();
+    for (const j of state.jobs) {
+      const arr = byStatus.get(j.status);
+      if (arr) arr.push(j); else byStatus.set(j.status, [j]);
+    }
     kanban.innerHTML = cols.map(col => {
-      const items = state.jobs.filter(j => col.keys.includes(j.status));
+      const items = col.keys.flatMap(k => byStatus.get(k) || []);
       const dotColor = STATUS_MAP[col.keys[0]]?.color || 'slate';
       return `
         <div class="kanban-col">
@@ -976,18 +982,27 @@
   async function loadAll({ refreshCounts = true } = {}) {
     try {
       const args = { state: state.activeState, search: state.search };
-      const [jobs, counts] = await Promise.all([
+      const [res, counts] = await Promise.all([
         api.getJobs(args),
         refreshCounts ? api.stateCounts() : Promise.resolve(state.stateCounts),
       ]);
-      setJobs(jobs || []);
+      // get_jobs now returns {jobs, offset, limit, total?, has_more}.
+      // Tolerate legacy bare-array responses in case of an older backend.
+      const jobs = Array.isArray(res) ? res : (res && res.jobs) || [];
+      setJobs(jobs);
+      state.jobsHasMore = !!(res && res.has_more);
+      state.jobsTotal = (res && typeof res.total === 'number') ? res.total : null;
       if (counts) state.stateCounts = counts;
       renderStateTabs();
       renderTable();
       if (state.activeView === 'kanban') renderKanban();
+      if (state.jobsHasMore) {
+        const totalTxt = state.jobsTotal != null ? ` of ${state.jobsTotal}` : '';
+        toast(`Showing first ${state.jobs.length}${totalTxt} jobs. Refine your filter to narrow results.`, 'warn');
+      }
     } catch (e) {
       console.error('loadAll failed', e);
-      toast('Failed to load Repair Jobs. ' + (e.message || ''), 'err');
+      toast('Failed to load Repair Jobs. ' + extractError(e), 'err');
     }
   }
 
