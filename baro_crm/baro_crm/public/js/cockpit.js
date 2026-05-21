@@ -778,7 +778,7 @@
                 <option value="oldest_stuck">Oldest stuck</option>
               </select>
             </label>
-            <button class="filter-chip" type="button" disabled title="Coming soon">Technician</button>
+            <button class="filter-chip" type="button" disabled title="Coming soon">Dispatcher</button>
             <button class="filter-chip" type="button" disabled title="Coming soon">Marketing source</button>
           </div>
           <div class="date-strip" role="group" aria-label="Date filter">
@@ -819,7 +819,7 @@
                   <th scope="col">State</th>
                   <th scope="col">Source</th>
                   <th scope="col">Equipment</th>
-                  <th scope="col">Technician</th>
+                  <th scope="col">Dispatcher</th>
                   <th scope="col">Updated</th>
                 </tr>
               </thead>
@@ -958,9 +958,10 @@
 
   function renderRow(j) {
     const s = STATUS_MAP[j.status] || { color: 'slate' };
-    const techHtml = j.technician
-      ? `<div class="tech-cell"><div class="avatar ${colorClass(j.technician)}" aria-hidden="true">${escapeHtml(initials(j.technician))}</div><span>${escapeHtml(j.technician)}</span></div>`
-      : `<div class="tech-cell empty">Unassigned</div>`;
+    const dispatcher = j.assigned_dispatcher || '';
+    const dispatcherHtml = dispatcher
+      ? `<div class="dispatcher-cell"><div class="avatar ${colorClass(dispatcher)}" aria-hidden="true">${escapeHtml(initials(dispatcher))}</div><span>${escapeHtml(dispatcher)}</span></div>`
+      : `<div class="dispatcher-cell empty">No dispatcher</div>`;
     const customer = j.customer || '(no customer)';
     const urgencyCls = (j.urgency || 'Unknown').replace(/\s+/g, '-');
     return `
@@ -986,7 +987,7 @@
         <td>${j.service_state ? `<span class="source-tag"><span class="dot" aria-hidden="true"></span>${escapeHtml(j.service_state)}</span>` : '<span style="color:var(--text-faint);font-style:italic;">—</span>'}</td>
         <td>${j.marketing_source ? `<span class="source-tag"><span class="dot" aria-hidden="true"></span>${escapeHtml(j.marketing_source)}</span>` : ''}</td>
         <td><div class="equipment-cell"><span class="urg ${escapeHtml(urgencyCls)}" aria-hidden="true"></span><span class="sr-only">Urgency ${escapeHtml(j.urgency || 'unknown')}.</span>${escapeHtml(j.equipment_type || '')}</div></td>
-        <td>${techHtml}</td>
+        <td>${dispatcherHtml}</td>
         <td><div class="time-cell">${escapeHtml(formatDateTime(j.modified))}<small>${escapeHtml(formatRelativeTime(j.modified))}</small></div></td>
       </tr>
     `;
