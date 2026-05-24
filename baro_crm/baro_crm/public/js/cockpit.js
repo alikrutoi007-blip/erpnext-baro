@@ -150,7 +150,8 @@
     stateCounts: { All: 0, Texas: 0, Florida: 0, 'New York': 0, 'New Jersey': 0 },
     selectedId: null,
     activeState: 'All',
-    activeView: 'list',                  // NEW: 'list' or 'kanban'
+    activeView: 'list',                  // 'list' or 'kanban' (view mode)
+    activeViewId: 'active',              // which named view from VIEWS is selected
     activeTab: 'overview',
     search: '',
     canWrite: false,
@@ -166,6 +167,8 @@
     sortBy: 'modified_desc',  // see SORT_MODES backend whitelist
     dateType: '',             // '' | 'follow_up' | 'call' | 'created' | 'updated'
     datePreset: '',           // '' | 'today' | 'yesterday' | 'tomorrow' | 'this_week' | 'overdue' | 'no_date'
+    dateFrom: '',             // explicit ISO date (YYYY-MM-DD) — from calendar popover
+    dateTo: '',               // explicit ISO date (YYYY-MM-DD) — from calendar popover
     pageLimit: 500,
     jobsHasMore: false,
     jobsTotal: null,
@@ -276,6 +279,50 @@
       return j.message;
     });
   }
+
+  // ---------------------------------------------------------------------------
+  // Named views (G). Hardcoded for MVP — flip to a Cockpit View DocType later.
+  // Each view is `{id, label, hint, icon, filters}`. `filters` is exactly the
+  // payload merged into api.getJobs() args; absent keys preserve user session
+  // state for that filter (e.g. user's currently-selected sort or city).
+  // ---------------------------------------------------------------------------
+  const VIEW_ICONS = {
+    inbox:   '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>',
+    user:    '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+    bolt:    '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+    sun:     '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>',
+    clock:   '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+    wrench:  '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4l-6 6 2 2 6-6a4 4 0 0 0 5.4-5.4l-2.3 2.3-2-2 2.3-2.3z"/></svg>',
+    cash:    '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>',
+    shield:  '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+    archive: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>',
+    ban:     '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>',
+  };
+
+  const VIEWS = [
+    { id: 'my-queue',        label: 'My Queue',          icon: 'user',
+      filters: { assignee: 'me', scope: 'active' } },
+    { id: 'unassigned',      label: 'Unassigned',        icon: 'inbox',
+      filters: { unassigned: 1, scope: 'active' } },
+    { id: 'active',          label: 'Active',            icon: 'bolt',
+      filters: { scope: 'active' } },
+    { id: 'today',           label: 'Today',             icon: 'sun',
+      filters: { scope: 'active', date_type: 'call', date_preset: 'today' } },
+    { id: 'needs-followup',  label: 'Needs Follow-up',   icon: 'clock',
+      filters: { needs_followup: 1 } },
+    { id: 'production',      label: 'Production',        icon: 'wrench',
+      filters: { statuses: ['Technician Assigned','Diagnostics In Progress','Diagnosis Completed','Parts Needed','Repair In Progress','Repair Completed'] } },
+    { id: 'waiting-money',   label: 'Waiting Money',     icon: 'cash',
+      filters: { statuses: ['Waiting Prepayment','Diagnostics Paid','Estimate Sent','Waiting Client Approval','Invoice Sent'] } },
+    { id: 'warranty',        label: 'Warranty',          icon: 'shield',
+      filters: { statuses: ['Warranty Active'] } },
+    { id: 'archive',         label: 'Archive',           icon: 'archive',
+      filters: { statuses: ['Closed','Paid'] } },
+    { id: 'spam-unrelated',  label: 'Spam / Unrelated',  icon: 'ban',
+      filters: { statuses: ['Spam','Unrelated','Lost'] } },
+  ];
+
+  function viewById(id) { return VIEWS.find(v => v.id === id) || VIEWS[2]; }
 
   const api = {
     bootContext: () => call('baro_crm.api.repair_job.get_boot_context'),
@@ -693,12 +740,12 @@
         </button>
 
         <nav class="nav-section">
+          <div class="nav-label">Repair Jobs</div>
+          <div id="viewsList" role="tablist" aria-label="Views"></div>
+        </nav>
+
+        <nav class="nav-section">
           <div class="nav-label">Workspace</div>
-          <button class="nav-item active" type="button">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4l-6 6 2 2 6-6a4 4 0 0 0 5.4-5.4l-2.3 2.3-2-2 2.3-2.3z"/><path d="m17 14 4 4-3 3-4-4"/></svg>
-            <span>Repair Jobs</span>
-            <span class="count" id="totalCount">0</span>
-          </button>
           <a class="nav-item" href="/app/repair-job" target="_blank" rel="noopener" title="Open the ERPNext list view">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             <span>ERPNext list</span>
@@ -942,7 +989,8 @@
     const tbody = $('#tableBody');
     if (!tbody) return;
     $('#rowCount').textContent = `${state.jobs.length} result${state.jobs.length === 1 ? '' : 's'}`;
-    $('#totalCount').textContent = state.stateCounts.All ?? state.jobs.length;
+    const totalEl = $('#totalCount');
+    if (totalEl) totalEl.textContent = state.stateCounts.All ?? state.jobs.length;
 
     if (!state.jobs.length) {
       tbody.innerHTML = `<tr><td colspan="9">
@@ -1068,19 +1116,34 @@
   // ---------------------------------------------------------------------------
   // 7. Data loading
   // ---------------------------------------------------------------------------
+  function buildJobArgs(extra = {}) {
+    // Base session state, then overlay the active view's filters, then `extra`
+    // (used by loadMore for offset etc.). View filters win against session,
+    // but `extra` always wins last so it can override.
+    const base = {
+      state: state.activeState,
+      search: state.search,
+      scope: state.scope,
+      city: state.city || null,
+      sort_by: state.sortBy,
+      date_type: state.dateType || null,
+      date_preset: state.datePreset || null,
+      date_from: state.dateFrom || null,
+      date_to: state.dateTo || null,
+      limit: state.pageLimit,
+      offset: 0,
+    };
+    const view = viewById(state.activeViewId);
+    const args = { ...base, ...view.filters, ...extra };
+    if (Array.isArray(args.statuses)) {
+      args.statuses = JSON.stringify(args.statuses);
+    }
+    return args;
+  }
+
   async function loadAll({ refreshCounts = true } = {}) {
     try {
-      const args = {
-        state: state.activeState,
-        search: state.search,
-        scope: state.scope,
-        city: state.city || null,
-        sort_by: state.sortBy,
-        date_type: state.dateType || null,
-        date_preset: state.datePreset || null,
-        limit: state.pageLimit,
-        offset: 0,
-      };
+      const args = buildJobArgs();
       const [res, counts] = await Promise.all([
         api.getJobs(args),
         refreshCounts ? api.stateCounts() : Promise.resolve(state.stateCounts),
@@ -1104,17 +1167,7 @@
     const btn = $('#kanbanLoadMore');
     if (btn) btn.disabled = true;
     try {
-      const args = {
-        state: state.activeState,
-        search: state.search,
-        scope: state.scope,
-        city: state.city || null,
-        sort_by: state.sortBy,
-        date_type: state.dateType || null,
-        date_preset: state.datePreset || null,
-        limit: state.pageLimit,
-        offset: state.jobs.length,
-      };
+      const args = buildJobArgs({ offset: state.jobs.length });
       const res = await api.getJobs(args);
       const more = Array.isArray(res) ? res : (res && res.jobs) || [];
       const merged = state.jobs.concat(more);
@@ -1144,6 +1197,27 @@
         <div class="load-more-info">Showing ${state.jobs.length}${state.jobsTotal != null ? ` of ${state.jobsTotal}` : ''}</div>
         <button id="kanbanLoadMore" type="button" class="btn">${escapeHtml(label)}</button>
       </div>`;
+  }
+
+  function renderViewsSidebar() {
+    const host = $('#viewsList');
+    if (!host) return;
+    const active = state.activeViewId;
+    host.innerHTML = VIEWS.map(v => `
+      <button class="nav-item ${v.id === active ? 'active' : ''}" type="button"
+              role="tab" aria-selected="${v.id === active ? 'true' : 'false'}"
+              data-view-id="${escapeHtml(v.id)}" title="${escapeHtml(v.label)}">
+        ${VIEW_ICONS[v.icon] || ''}
+        <span>${escapeHtml(v.label)}</span>
+      </button>
+    `).join('');
+  }
+
+  function selectView(viewId) {
+    if (state.activeViewId === viewId) return;
+    state.activeViewId = viewId;
+    renderViewsSidebar();
+    loadAll({ refreshCounts: false });
   }
 
   function updateDateStripUI() {
@@ -1776,6 +1850,12 @@
           if (list) list.style.display = '';
           if (kan) { kan.style.display = 'none'; kan.setAttribute('aria-hidden', 'true'); }
         }
+        return;
+      }
+
+      const viewBtn2 = e.target.closest('#viewsList .nav-item[data-view-id]');
+      if (viewBtn2) {
+        selectView(viewBtn2.dataset.viewId);
         return;
       }
 
@@ -2469,6 +2549,7 @@
       console.warn('Boot context failed; using page meta fallback', e);
     }
     renderShell();
+    renderViewsSidebar();
     bindEvents();
     setupRealtime();
     // Fire filter options + initial jobs in parallel; cities are non-blocking.
