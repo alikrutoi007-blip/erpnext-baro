@@ -439,6 +439,8 @@
     sortableInstances.forEach(s => { try { s.destroy(); } catch (e) {} });
     sortableInstances = [];
 
+    if (!state.canWrite) return;          // Readers cannot drag cards
+
     if (typeof Sortable === 'undefined') {
       console.warn('Sortable global missing; drag/drop disabled');
       return;
@@ -736,11 +738,15 @@
             <button class="btn btn-ghost btn-icon" id="btnRefresh" title="Refresh" aria-label="Refresh">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
             </button>
+            ${state.canWrite ? `
             <button class="btn btn-primary" type="button" id="btnOpenCreateDrawer">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               New Repair Job
             </button>
             <a class="btn btn-ghost" href="/app/repair-job/new" target="_blank" rel="noopener" title="Open ERPNext form (advanced)" style="font-size:11.5px;color:var(--text-faint);margin-left:4px;">⤴</a>
+            ` : `
+            <span class="btn btn-ghost" style="font-size:11.5px;color:var(--text-faint);cursor:default;" title="Read-only access">Read-only</span>
+            `}
           </div>
         </header>
 
@@ -945,9 +951,11 @@
           ${state.activeState !== 'All'
             ? '<div>Try a different state tab or "All".</div>'
             : '<div>When calls arrive from Zadarma, they will appear here.</div>'}
+          ${state.canWrite ? `
           <div class="empty-actions">
             <button type="button" class="btn btn-primary" id="btnOpenCreateDrawerFromEmpty">+ Create Repair Job</button>
           </div>
+          ` : ''}
         </div>
       </td></tr>`;
       return;
