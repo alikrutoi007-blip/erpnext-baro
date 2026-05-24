@@ -468,14 +468,66 @@ def _resolve_date_preset(preset, field):
     return []
 
 
+# Team-member fields on Repair Job that count for the "My Queue" view.
+_ASSIGNEE_FIELDS = (
+    "technician",
+    "assigned_dispatcher",
+    "estimate_manager",
+    "production_manager",
+    "mentor",
+    "owner",
+)
+
+
+def _normalize_status_list(raw):
+    """Accept JSON list ('[\"New\",\"Closed\"]'), comma string ('New,Closed'),
+    or Python list. Returns a clean list of non-empty strings, or [] if none."""
+    if not raw:
+        return []
+    if isinstance(raw, (list, tuple)):
+        items = raw
+    else:
+        s = str(raw).strip()
+        if s.startswith("["):
+            import json
+            try:
+                items = json.loads(s)
+            except (ValueError, TypeError):
+                items = [s]
+        else:
+            items = s.split(",")
+    return [str(x).strip() for x in items if str(x).strip()]
+
+
+def _user_assigned_rj_names(user):
+    """All Repair Job names where the given user holds any team-member field.
+    Returns a list of strings (possibly empty)."""
+    if not user or user == "Guest":
+        return []
+    where_clauses = " OR ".join(f"`{f}` = %s" for f in _ASSIGNEE_FIELDS)
+    params = [user] * len(_ASSIGNEE_FIELDS)
+    return frappe.db.sql_list(
+        f"SELECT name FROM `tabRepair Job` WHERE {where_clauses}",
+        params,
+    )
+
+
 @frappe.whitelist()
 def get_jobs(state=None, status=None, search=None,
              limit=500, offset=0, date_from=None, date_to=None,
              scope="active", city=None, sort_by="modified_desc",
-             date_type=None, date_preset=None):
+             date_type=None, date_preset=None,
+             statuses=None, assignee=None, unassigned=None, needs_followup=None):
     """Paginated list. Returns {jobs, offset, limit, total?, has_more}.
     total is None when search is active (frappe.db.count doesn't honor or_filters).
-    scope: 'active' (default) excludes terminal statuses; 'all' includes them."""
+    scope: 'active' (default) excludes terminal statuses; 'all' includes them.
+
+    View-driven filters (G):
+      statuses: JSON list or comma string of allowed statuses; takes precedence over `status`
+      assignee: 'me' filters jobs where the current user holds any team-member field
+      unassigned: 1 filters jobs with no technician
+      needs_followup: 1 filters jobs whose next_follow_up_datetime is past-due
+    """
     try:
         limit = max(1, min(int(limit), 2000))
     except (TypeError, ValueError):
@@ -485,17 +537,37 @@ def get_jobs(state=None, status=None, search=None,
     except (TypeError, ValueError):
         offset = 0
 
+    # Normalize `statuses` (list or comma-string or JSON-string)
+    status_list = _normalize_status_list(statuses)
+    has_status_filter = bool(status_list or status)
+
     filters = []
     if state and state != "All":
         filters.append(["service_state", "=", state])
-    if status:
+    if status_list:
+        filters.append(["status", "in", status_list])
+    elif status:
         filters.append(["status", "=", status])
-    if date_from:
+    if date_from and not date_type:
+        # Legacy single-param path (pre-date_type). Date-type path handled below.
         filters.append(["call_datetime", ">=", date_from])
     if city:
         filters.append(["area", "=", city])
-    if scope == "active" and not status:
+    if scope == "active" and not has_status_filter:
         filters.append(["status", "not in", TERMINAL_STATUSES])
+    if assignee == "me":
+        me = frappe.session.user
+        my_names = _user_assigned_rj_names(me)
+        # `name in []` would match every row on some Frappe versions; force-empty match instead
+        filters.append(["name", "in", my_names or ["__NO_MATCH__"]])
+    if unassigned in (1, "1", True, "true"):
+        filters.append(["technician", "in", ["", None]])
+    if needs_followup in (1, "1", True, "true"):
+        today_str = frappe.utils.nowdate() + " 23:59:59"
+        filters.append(["next_follow_up_datetime", "<=", today_str])
+        filters.append(["next_follow_up_datetime", "is", "set"])
+        if not has_status_filter:
+            filters.append(["status", "not in", TERMINAL_STATUSES])
 
     # Date strip filter — resolved server-side so the client never has to know
     # current-week boundaries. Backward-compatible: no date_type/date_preset
