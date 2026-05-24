@@ -152,6 +152,7 @@
     activeState: 'All',
     activeView: 'list',                  // 'list' or 'kanban' (view mode)
     activeViewId: 'active',              // which named view from VIEWS is selected
+    viewCounts: {},                      // {viewId: int} — refreshed on boot + after writes
     activeTab: 'overview',
     search: '',
     canWrite: false,
@@ -607,6 +608,7 @@
       if (job) job.status = r.status;
       renderKanban();
       api.stateCounts().then(c => { state.stateCounts = c; renderStateTabs(); });
+      refreshViewCounts();
       toast(`Status: ${r.status}`, 'ok');
       if (state.selectedId === cardId) openInspector(cardId);
     } catch (e) {
@@ -622,6 +624,7 @@
       if (job) job.status = r.status;
       renderKanban();
       api.stateCounts().then(c => { state.stateCounts = c; renderStateTabs(); });
+      refreshViewCounts();
       toast(`Status: ${r.status}`, 'ok');
       if (state.selectedId === cardId) openInspector(cardId);
     } catch (e) {
@@ -705,6 +708,7 @@
       if (job) job.status = r.status;
       renderKanban();
       api.stateCounts().then(c => { state.stateCounts = c; renderStateTabs(); });
+      refreshViewCounts();
       toast(`Status: ${r.status}`, 'ok');
       if (state.selectedId === cardId) openInspector(cardId);
     } catch (e) {
@@ -800,24 +804,33 @@
         <nav class="state-tabs" id="stateTabs" role="tablist" aria-label="Filter by service state"></nav>
 
         <div class="work-toolbar">
-          <div class="view-switch" id="viewSwitch" role="tablist" aria-label="View">
-            <button data-view="list" class="active" type="button" role="tab" aria-selected="true">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-              List
-            </button>
-            <button data-view="kanban" type="button" role="tab" aria-selected="false">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="6" height="18" rx="1"/><rect x="10" y="3" width="6" height="12" rx="1"/><rect x="17" y="3" width="4" height="8" rx="1"/></svg>
-              Kanban
-            </button>
-          </div>
-          <div class="filter-row">
-            <button class="filter-chip is-toggle is-on" id="scopeChip" type="button" aria-pressed="true" title="Hide Closed / Lost / Spam / Unrelated">
-              <span class="chip-dot" aria-hidden="true"></span> Active only
-            </button>
+          <!-- Row 2: compact control bar -->
+          <div class="control-bar">
+            <div class="view-switch" id="viewSwitch" role="tablist" aria-label="View mode">
+              <button data-view="list" class="active" type="button" role="tab" aria-selected="true">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                List
+              </button>
+              <button data-view="kanban" type="button" role="tab" aria-selected="false">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="6" height="18" rx="1"/><rect x="10" y="3" width="6" height="12" rx="1"/><rect x="17" y="3" width="4" height="8" rx="1"/></svg>
+                Kanban
+              </button>
+            </div>
+            <div class="active-view-label" id="activeViewLabel" title="Current view (pick from the left sidebar)">View: <strong>—</strong></div>
             <label class="filter-chip filter-chip-select" title="Filter by city / area">
               <span>City</span>
               <select id="cityFilter">
                 <option value="">All cities</option>
+              </select>
+            </label>
+            <label class="filter-chip filter-chip-select" title="Choose which date the chips below filter on">
+              <span>Date</span>
+              <select id="dateTypeFilter">
+                <option value="">Date type…</option>
+                <option value="call">Call / lead</option>
+                <option value="follow_up">Follow-up</option>
+                <option value="created">Created</option>
+                <option value="updated">Updated</option>
               </select>
             </label>
             <label class="filter-chip filter-chip-select" title="Sort order">
@@ -831,26 +844,13 @@
                 <option value="oldest_stuck">Oldest stuck</option>
               </select>
             </label>
-            <button class="filter-chip" type="button" disabled title="Coming soon">Dispatcher</button>
-            <button class="filter-chip" type="button" disabled title="Coming soon">Marketing source</button>
+            <button class="filter-chip" type="button" id="moreFiltersBtn" disabled title="Coming soon — Dispatcher / Marketing source / etc.">More filters…</button>
           </div>
+          <!-- Row 3: compact date quick row -->
           <div class="date-strip" role="group" aria-label="Date filter">
-            <label class="filter-chip filter-chip-select" title="Choose which date the chips below filter on">
-              <span>Date</span>
-              <select id="dateTypeFilter">
-                <option value="">Date type…</option>
-                <option value="call">Call / lead</option>
-                <option value="follow_up">Follow-up</option>
-                <option value="created">Created</option>
-                <option value="updated">Updated</option>
-              </select>
-            </label>
             <button class="filter-chip date-chip" type="button" data-date-preset="today">Today</button>
-            <button class="filter-chip date-chip" type="button" data-date-preset="yesterday">Yesterday</button>
-            <button class="filter-chip date-chip" type="button" data-date-preset="tomorrow">Tomorrow</button>
             <button class="filter-chip date-chip" type="button" data-date-preset="this_week">This week</button>
             <button class="filter-chip date-chip" type="button" data-date-preset="overdue">Overdue</button>
-            <button class="filter-chip date-chip" type="button" data-date-preset="no_date">No date</button>
             <button class="filter-chip date-chip" type="button" id="dateRangeChip" title="Pick an explicit date range">Range…</button>
             <button class="filter-chip date-chip is-clear" type="button" data-date-preset="clear" title="Clear date filter">Clear</button>
           </div>
@@ -1273,14 +1273,29 @@
     const host = $('#viewsList');
     if (!host) return;
     const active = state.activeViewId;
-    host.innerHTML = VIEWS.map(v => `
+    const counts = state.viewCounts || {};
+    host.innerHTML = VIEWS.map(v => {
+      const count = counts[v.id];
+      const countHtml = (count != null)
+        ? `<span class="count">${count}</span>`
+        : '';
+      return `
       <button class="nav-item ${v.id === active ? 'active' : ''}" type="button"
               role="tab" aria-selected="${v.id === active ? 'true' : 'false'}"
               data-view-id="${escapeHtml(v.id)}" title="${escapeHtml(v.label)}">
         ${VIEW_ICONS[v.icon] || ''}
         <span>${escapeHtml(v.label)}</span>
-      </button>
-    `).join('');
+        ${countHtml}
+      </button>`;
+    }).join('');
+    updateActiveViewLabel();
+  }
+
+  function updateActiveViewLabel() {
+    const el = $('#activeViewLabel');
+    if (!el) return;
+    const v = viewById(state.activeViewId);
+    el.innerHTML = `View: <strong>${escapeHtml(v.label)}</strong>`;
   }
 
   function selectView(viewId) {
@@ -1288,6 +1303,16 @@
     state.activeViewId = viewId;
     renderViewsSidebar();
     loadAll({ refreshCounts: false });
+  }
+
+  async function refreshViewCounts() {
+    try {
+      const counts = await call('baro_crm.api.repair_job.get_view_counts');
+      state.viewCounts = counts || {};
+      renderViewsSidebar();
+    } catch (e) {
+      console.warn('get_view_counts failed', e);
+    }
   }
 
   function updateDateStripUI() {
@@ -1834,6 +1859,7 @@
       }
       // Refresh state counts since a state-ish change may have happened
       api.stateCounts().then(c => { state.stateCounts = c; renderStateTabs(); });
+      refreshViewCounts();
       toast(`Status: ${r.status}`, 'ok');
     } catch (e) {
       console.error('changeStatus failed', e);
@@ -1941,17 +1967,6 @@
       if (stateTab) {
         state.activeState = stateTab.dataset.state;
         renderStateTabs();
-        loadAll({ refreshCounts: false });
-        return;
-      }
-
-      const scopeChip = e.target.closest('#scopeChip');
-      if (scopeChip) {
-        state.scope = state.scope === 'active' ? 'all' : 'active';
-        const on = state.scope === 'active';
-        scopeChip.classList.toggle('is-on', on);
-        scopeChip.setAttribute('aria-pressed', on ? 'true' : 'false');
-        scopeChip.firstElementChild.nextSibling.textContent = on ? ' Active only' : ' All jobs';
         loadAll({ refreshCounts: false });
         return;
       }
@@ -2602,6 +2617,7 @@
       }
 
       api.stateCounts().then(c => { state.stateCounts = c; renderStateTabs(); }).catch(() => {});
+      refreshViewCounts();
 
       const warningSummary = (r.warnings || []).map(w => w.message).filter(Boolean).join(' · ');
       toast(`Created ${r.name}${warningSummary ? ' · ' + warningSummary : ''}`, 'ok');
@@ -2658,6 +2674,8 @@
     renderViewsSidebar();
     bindEvents();
     setupRealtime();
+    // Fire-and-forget — view counts decorate the sidebar but don't gate loading.
+    refreshViewCounts();
     // Fire filter options + initial jobs in parallel; cities are non-blocking.
     api.filterOptions().then(opts => {
       state.cities = (opts && opts.cities) || [];

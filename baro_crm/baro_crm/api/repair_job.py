@@ -644,6 +644,75 @@ def get_state_counts():
     return counts
 
 
+# Server-side mirror of the cockpit's 10 named views. Keep in sync with the
+# VIEWS const in baro_crm/public/js/cockpit.js. Each entry resolves to a list of
+# `[field, op, value]` filter triples for frappe.db.count.
+PRODUCTION_STATUSES = [
+    "Technician Assigned", "Diagnostics In Progress", "Diagnosis Completed",
+    "Parts Needed", "Repair In Progress", "Repair Completed",
+]
+WAITING_MONEY_STATUSES = [
+    "Waiting Prepayment", "Diagnostics Paid", "Estimate Sent",
+    "Waiting Client Approval", "Invoice Sent",
+]
+
+
+def _view_filters(view_id, me):
+    if view_id == "my-queue":
+        names = _user_assigned_rj_names(me) or ["__NO_MATCH__"]
+        return [["name", "in", names],
+                ["status", "not in", TERMINAL_STATUSES]]
+    if view_id == "unassigned":
+        return [["technician", "in", ["", None]],
+                ["status", "not in", TERMINAL_STATUSES]]
+    if view_id == "active":
+        return [["status", "not in", TERMINAL_STATUSES]]
+    if view_id == "today":
+        today = frappe.utils.getdate(frappe.utils.nowdate())
+        next_day = frappe.utils.add_days(today, 1)
+        return [["call_datetime", ">=", f"{today} 00:00:00"],
+                ["call_datetime", "<", f"{next_day} 00:00:00"],
+                ["status", "not in", TERMINAL_STATUSES]]
+    if view_id == "needs-followup":
+        today_eod = frappe.utils.nowdate() + " 23:59:59"
+        return [["next_follow_up_datetime", "<=", today_eod],
+                ["next_follow_up_datetime", "is", "set"],
+                ["status", "not in", TERMINAL_STATUSES]]
+    if view_id == "production":
+        return [["status", "in", PRODUCTION_STATUSES]]
+    if view_id == "waiting-money":
+        return [["status", "in", WAITING_MONEY_STATUSES]]
+    if view_id == "warranty":
+        return [["status", "in", ["Warranty Active"]]]
+    if view_id == "archive":
+        return [["status", "in", ["Closed", "Paid"]]]
+    if view_id == "spam-unrelated":
+        return [["status", "in", ["Spam", "Unrelated", "Lost"]]]
+    return None
+
+
+VIEW_IDS = [
+    "my-queue", "unassigned", "active", "today", "needs-followup",
+    "production", "waiting-money", "warranty", "archive", "spam-unrelated",
+]
+
+
+@frappe.whitelist()
+def get_view_counts():
+    """Returns {view_id: int} for the 10 cockpit views. Counts are session-scoped
+    (My Queue uses frappe.session.user). Safe to call repeatedly — 10 counts
+    is cheap (~10ms total on the Florida site)."""
+    me = frappe.session.user
+    counts = {}
+    for vid in VIEW_IDS:
+        filters = _view_filters(vid, me)
+        if filters is None:
+            counts[vid] = 0
+            continue
+        counts[vid] = frappe.db.count("Repair Job", filters=filters)
+    return counts
+
+
 @frappe.whitelist()
 def get_job(repair_job):
     """Full Repair Job doc as a dict, permission-checked."""
