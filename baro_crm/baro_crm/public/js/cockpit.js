@@ -851,7 +851,28 @@
             <button class="filter-chip date-chip" type="button" data-date-preset="this_week">This week</button>
             <button class="filter-chip date-chip" type="button" data-date-preset="overdue">Overdue</button>
             <button class="filter-chip date-chip" type="button" data-date-preset="no_date">No date</button>
+            <button class="filter-chip date-chip" type="button" id="dateRangeChip" title="Pick an explicit date range">Range…</button>
             <button class="filter-chip date-chip is-clear" type="button" data-date-preset="clear" title="Clear date filter">Clear</button>
+          </div>
+        </div>
+        <div class="date-range-popover" id="dateRangePopover" role="dialog" aria-label="Date range" aria-hidden="true">
+          <div class="drp-head">
+            <strong>Date range</strong>
+            <button type="button" class="drp-close" id="dateRangeClose" aria-label="Close">×</button>
+          </div>
+          <div class="drp-body">
+            <label class="drp-field">
+              <span>From</span>
+              <input type="date" id="dateRangeFrom">
+            </label>
+            <label class="drp-field">
+              <span>To</span>
+              <input type="date" id="dateRangeTo">
+            </label>
+          </div>
+          <div class="drp-foot">
+            <button class="btn btn-ghost" type="button" id="dateRangeClear" style="font-size:12px;">Clear range</button>
+            <button class="btn btn-primary" type="button" id="dateRangeApply" style="font-size:12px;">Apply</button>
           </div>
         </div>
 
@@ -1199,6 +1220,55 @@
       </div>`;
   }
 
+  // -- Calendar popover (G-T3) — explicit date_from/date_to via two <input type=date> --
+  function openDateRangePopover(anchorEl) {
+    const pop = $('#dateRangePopover');
+    if (!pop) return;
+    const fromInp = $('#dateRangeFrom');
+    const toInp = $('#dateRangeTo');
+    if (fromInp) fromInp.value = state.dateFrom || '';
+    if (toInp) toInp.value = state.dateTo || '';
+    const r = anchorEl.getBoundingClientRect();
+    pop.style.top = `${r.bottom + 6}px`;
+    pop.style.left = `${Math.min(r.left, window.innerWidth - 280)}px`;
+    pop.classList.add('open');
+    pop.setAttribute('aria-hidden', 'false');
+    state._dateRangeOpen = true;
+    setTimeout(() => fromInp && fromInp.focus(), 30);
+  }
+
+  function closeDateRangePopover() {
+    const pop = $('#dateRangePopover');
+    if (!pop) return;
+    pop.classList.remove('open');
+    pop.setAttribute('aria-hidden', 'true');
+    state._dateRangeOpen = false;
+  }
+
+  function applyDateRange() {
+    const from = ($('#dateRangeFrom') || {}).value || '';
+    const to = ($('#dateRangeTo') || {}).value || '';
+    if (from && to && from > to) {
+      toast('"From" must be on or before "To".', 'err');
+      return;
+    }
+    if (!state.dateType) state.dateType = 'call';
+    state.dateFrom = from;
+    state.dateTo = to;
+    state.datePreset = '';   // explicit range wins over preset
+    closeDateRangePopover();
+    updateDateStripUI();
+    loadAll({ refreshCounts: false });
+  }
+
+  function clearDateRange() {
+    state.dateFrom = '';
+    state.dateTo = '';
+    closeDateRangePopover();
+    updateDateStripUI();
+    loadAll({ refreshCounts: false });
+  }
+
   function renderViewsSidebar() {
     const host = $('#viewsList');
     if (!host) return;
@@ -1228,6 +1298,14 @@
       btn.classList.toggle('is-on', on);
       btn.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
+    const rangeChip = $('#dateRangeChip');
+    if (rangeChip) {
+      const on = !!(state.dateFrom || state.dateTo);
+      rangeChip.classList.toggle('is-on', on);
+      rangeChip.textContent = on
+        ? `${state.dateFrom || '…'} → ${state.dateTo || '…'}`
+        : 'Range…';
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -1883,15 +1961,43 @@
         return;
       }
 
+      if (e.target.closest('#dateRangeChip')) {
+        openDateRangePopover(e.target.closest('#dateRangeChip'));
+        return;
+      }
+      if (e.target.closest('#dateRangeApply')) {
+        applyDateRange();
+        return;
+      }
+      if (e.target.closest('#dateRangeClear')) {
+        clearDateRange();
+        return;
+      }
+      if (e.target.closest('#dateRangeClose')) {
+        closeDateRangePopover();
+        return;
+      }
+      // Outside-click close for the date range popover
+      if (state._dateRangeOpen
+          && !e.target.closest('#dateRangePopover')
+          && !e.target.closest('#dateRangeChip')) {
+        closeDateRangePopover();
+      }
+
       const dateChip = e.target.closest('.date-chip[data-date-preset]');
       if (dateChip) {
         const preset = dateChip.dataset.datePreset;
         if (preset === 'clear') {
           state.datePreset = '';
+          state.dateFrom = '';
+          state.dateTo = '';
         } else {
           // Leads are usually reviewed by call date; follow-up remains selectable.
           if (!state.dateType) state.dateType = 'call';
           state.datePreset = (state.datePreset === preset) ? '' : preset;
+          // Picking a preset clears any explicit range — mutually exclusive.
+          state.dateFrom = '';
+          state.dateTo = '';
         }
         updateDateStripUI();
         loadAll({ refreshCounts: false });
