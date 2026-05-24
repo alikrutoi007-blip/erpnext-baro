@@ -17,5 +17,24 @@
   "form_sidebar": 1,
   "timeline": 1,
   "dashboard": 1
+ },
+ {
+  "doctype": "Role",
+  "name": "Baro Reader",
+  "role_name": "Baro Reader",
+  "desk_access": 1,
+  "disabled": 0,
+  "is_custom": 1,
+  "module": "Baro CRM",
+  "two_factor_auth": 0,
+  "restrict_to_domain": "",
+  "search_bar": 1,
+  "notifications": 1,
+  "list_sidebar": 1,
+  "bulk_actions": 0,
+  "view_switcher": 1,
+  "form_sidebar": 1,
+  "timeline": 1,
+  "dashboard": 1
  }
 ]

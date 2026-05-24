@@ -35,7 +35,7 @@ fixtures = [
     },
     {
         "dt": "Role",
-        "filters": [["name", "in", ["Baro Dispatcher"]]],
+        "filters": [["name", "in", ["Baro Dispatcher", "Baro Reader"]]],
     },
 ]
 

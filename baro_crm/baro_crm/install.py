@@ -2,32 +2,40 @@
 Install / migrate hooks for baro_crm.
 
 Runs idempotently on every `bench migrate` so that:
-  * The Baro Dispatcher role exists (also shipped via the Role fixture as a
-    belt-and-braces measure).
-  * Baro Dispatcher has the minimum DocType permissions needed to drive the
-    /repair-jobs cockpit end-to-end — create / read / write Repair Job AND
-    the dependent Customer / Contact / Address records the drawer touches.
+  * Baro Dispatcher + Baro Reader roles exist (also shipped via the Role
+    fixture as a belt-and-braces measure).
+  * Baro Dispatcher has the minimum DocType permissions to drive the
+    /repair-jobs cockpit end-to-end — read/create/write Repair Job AND the
+    dependent Customer / Contact / Address records the drawer touches.
+  * Baro Reader has read-only access to the same DocTypes (no create, no
+    write, no workflow transitions, no cockpit drag/drop edits).
   * Baro Dispatcher is allowed by the active Repair Job workflow states and
-    transitions. Frappe Workflow has its own gate on top of DocPerm.
+    transitions. Frappe Workflow has its own gate on top of DocPerm. Reader
+    is intentionally NOT added here — read-only never changes state.
 
 Permissions are written as Custom DocPerm rows. Custom DocPerm survives
 bench migrate cleanly and never collides with a DocType's built-in `permissions`
-table. If you want a Baro Dispatcher to also gain stock ERPNext perms (e.g.
-Sales User), add that role on the User document — these perms are additive.
+table.
+
+Role assignment policy (per user 2026-05-24):
+  - Assign Baro Dispatcher to users who should work with jobs.
+  - Assign Baro Reader to users who should only view.
+  - Frappe perms are additive: assigning both is equivalent to Dispatcher
+    alone; avoid double-assignment unless intentional.
+  - Do NOT widen perms to "All" or every Desk User. Positive roles only.
 """
 
 import frappe
 
 
 DISPATCHER_ROLE = "Baro Dispatcher"
+READER_ROLE = "Baro Reader"
 
-# DocType -> action flags to grant. Keep this list short and explicit;
-# anything missing here means "not granted by baro_crm".
+# DocType -> action flags. Anything missing here means "not granted by baro_crm".
 DISPATCHER_PERMS = {
     "Repair Job": {
         "read": 1, "create": 1, "write": 1,
         "email": 1, "print": 1, "report": 1, "share": 1,
-        # explicit deny — Frappe defaults each to 0 anyway, included for clarity
         "delete": 0, "submit": 0, "cancel": 0, "amend": 0,
         "export": 0, "import": 0,
     },
@@ -45,29 +53,61 @@ DISPATCHER_PERMS = {
     },
 }
 
+# Read-only mirror. Print + report explicitly allowed so a Reader can run the
+# standard Frappe report views; everything else hard-zero.
+READER_PERMS = {
+    "Repair Job": {
+        "read": 1, "print": 1, "report": 1,
+        "create": 0, "write": 0, "delete": 0,
+        "submit": 0, "cancel": 0, "amend": 0,
+        "email": 0, "share": 0, "export": 0, "import": 0,
+    },
+    "Customer": {
+        "read": 1,
+        "create": 0, "write": 0, "delete": 0, "export": 0, "import": 0,
+    },
+    "Contact": {
+        "read": 1,
+        "create": 0, "write": 0, "delete": 0, "export": 0, "import": 0,
+    },
+    "Address": {
+        "read": 1,
+        "create": 0, "write": 0, "delete": 0, "export": 0, "import": 0,
+    },
+}
+
+ROLE_SPECS = [
+    (DISPATCHER_ROLE, DISPATCHER_PERMS),
+    (READER_ROLE, READER_PERMS),
+]
+
 
 def after_install():
     """Called once when `bench install-app baro_crm` runs."""
-    ensure_dispatcher_role()
-    ensure_dispatcher_perms()
-    ensure_dispatcher_workflow_access()
+    _run_all()
 
 
 def after_migrate():
     """Called on every `bench migrate`. Idempotent."""
-    ensure_dispatcher_role()
-    ensure_dispatcher_perms()
+    _run_all()
+
+
+def _run_all():
+    for role, _ in ROLE_SPECS:
+        ensure_role(role)
+    for role, perms in ROLE_SPECS:
+        ensure_perms(role, perms)
+    # Workflow access: Dispatcher only. Reader is read-only by design.
     ensure_dispatcher_workflow_access()
 
 
-def ensure_dispatcher_role():
-    """The Role fixture should already place this row; this is a safety net
-    for the case where fixtures haven't loaded yet on a fresh install."""
-    if frappe.db.exists("Role", DISPATCHER_ROLE):
+def ensure_role(role_name):
+    """Safety net for fresh installs where fixtures haven't loaded yet."""
+    if frappe.db.exists("Role", role_name):
         return
     role = frappe.new_doc("Role")
     role.update({
-        "role_name": DISPATCHER_ROLE,
+        "role_name": role_name,
         "desk_access": 1,
         "is_custom": 1,
         "module": "Baro CRM",
@@ -76,19 +116,18 @@ def ensure_dispatcher_role():
     role.insert(ignore_permissions=True)
 
 
-def ensure_dispatcher_perms():
-    if not frappe.db.exists("Role", DISPATCHER_ROLE):
-        # Created next migrate when the fixture loads.
+def ensure_perms(role_name, perms_by_doctype):
+    if not frappe.db.exists("Role", role_name):
+        # Will create next migrate when the fixture loads.
         return
 
     changed = False
-    for doctype, perms in DISPATCHER_PERMS.items():
+    for doctype, perms in perms_by_doctype.items():
         if not frappe.db.exists("DocType", doctype):
-            # Skip e.g. on a partial install where ERPNext isn't there yet.
             continue
         existing = frappe.db.exists("Custom DocPerm", {
             "parent": doctype,
-            "role": DISPATCHER_ROLE,
+            "role": role_name,
             "permlevel": 0,
         })
         if existing:
@@ -109,7 +148,7 @@ def ensure_dispatcher_perms():
             "parent": doctype,
             "parenttype": "DocType",
             "parentfield": "permissions",
-            "role": DISPATCHER_ROLE,
+            "role": role_name,
             "permlevel": 0,
             **perms,
         })
@@ -127,7 +166,8 @@ def ensure_dispatcher_workflow_access():
     DocPerm write is not enough when Workflow is active: Frappe also checks
     Workflow Document State.allow_edit and Workflow Transition.allowed. Both
     fields are single-role links, so we add parallel rows for Baro Dispatcher
-    instead of mutating the existing role rows.
+    instead of mutating the existing role rows. Baro Reader is intentionally
+    NOT added here — read-only by design.
     """
     if not frappe.db.exists("Role", DISPATCHER_ROLE):
         return
