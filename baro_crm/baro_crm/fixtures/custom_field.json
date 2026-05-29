@@ -39,5 +39,123 @@
   "default": "0",
   "description": "Set to 1 when service_address_text is populated but no Address doc was created.",
   "module": "Baro CRM"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Customer-baro_crm_section",
+  "dt": "Customer",
+  "fieldname": "baro_crm_section",
+  "label": "Baro CRM",
+  "fieldtype": "Section Break",
+  "insert_after": "customer_name",
+  "collapsible": 1,
+  "module": "Baro CRM"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Customer-normalized_phone",
+  "dt": "Customer",
+  "fieldname": "normalized_phone",
+  "label": "Normalized Phone",
+  "fieldtype": "Data",
+  "insert_after": "baro_crm_section",
+  "search_index": 1,
+  "unique": 0,
+  "description": "Phone dedup target (+<digits>). Set by customer migration (K). Not unique — many customers have no phone.",
+  "module": "Baro CRM"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Customer-legacy_customer_id",
+  "dt": "Customer",
+  "fieldname": "legacy_customer_id",
+  "label": "Legacy Customer ID",
+  "fieldtype": "Data",
+  "insert_after": "normalized_phone",
+  "search_index": 1,
+  "unique": 0,
+  "description": "Source system's own ID. Migration idempotency key. NOT unique (empty-string collision on non-migrated customers).",
+  "module": "Baro CRM"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Customer-source_system",
+  "dt": "Customer",
+  "fieldname": "source_system",
+  "label": "Source System",
+  "fieldtype": "Data",
+  "insert_after": "legacy_customer_id",
+  "description": "Per-source label recorded at import time.",
+  "module": "Baro CRM"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Customer-import_batch_id",
+  "dt": "Customer",
+  "fieldname": "import_batch_id",
+  "label": "Import Batch ID",
+  "fieldtype": "Data",
+  "insert_after": "source_system",
+  "search_index": 1,
+  "description": "Re-run / rollback handle for the customer migration.",
+  "module": "Baro CRM"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Customer-duplicate_warning",
+  "dt": "Customer",
+  "fieldname": "duplicate_warning",
+  "label": "Possible Duplicate",
+  "fieldtype": "Check",
+  "insert_after": "import_batch_id",
+  "default": "0",
+  "description": "Set to 1 when imported without a phone/name match. F drawer shows an amber dot.",
+  "module": "Baro CRM"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Customer-city_area",
+  "dt": "Customer",
+  "fieldname": "city_area",
+  "label": "City / Area",
+  "fieldtype": "Data",
+  "insert_after": "duplicate_warning",
+  "description": "City / neighborhood from the source 'area' column.",
+  "module": "Baro CRM"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Customer-service_state",
+  "dt": "Customer",
+  "fieldname": "service_state",
+  "label": "Service State",
+  "fieldtype": "Select",
+  "options": "\nTexas\nFlorida\nNew York\nNew Jersey",
+  "insert_after": "city_area",
+  "search_index": 1,
+  "description": "US state (TX/FL/NY/NJ). Explicit from source or inferred from area.",
+  "module": "Baro CRM"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Customer-first_seen",
+  "dt": "Customer",
+  "fieldname": "first_seen",
+  "label": "First Seen",
+  "fieldtype": "Date",
+  "insert_after": "service_state",
+  "description": "First-contact date from the source data.",
+  "module": "Baro CRM"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Customer-last_known_equipment",
+  "dt": "Customer",
+  "fieldname": "last_known_equipment",
+  "label": "Last Known Equipment",
+  "fieldtype": "Data",
+  "insert_after": "first_seen",
+  "description": "Free-text equipment note from the source. Future sub-project promotes this to a DocType.",
+  "module": "Baro CRM"
  }
 ]
