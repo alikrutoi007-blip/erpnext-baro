@@ -155,5 +155,34 @@ class TestClassifyRow(unittest.TestCase):
         self.assertEqual(r["decision"], "insert_with_warning")
 
 
+class TestParseCsvText(unittest.TestCase):
+    HEADER = ("legacy_customer_id,customer_name,caller_phone_raw,area,service_state,"
+              "marketing_source,first_contact_date,last_known_equipment,notes")
+
+    def test_parses_full_row(self):
+        text = self.HEADER + "\nL1,Sunrise Diner,212-555-0101,Brooklyn,,Google,2023-01-01,Oven,vip\n"
+        rows = mc.parse_csv_text(text)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["customer_name"], "Sunrise Diner")
+        self.assertEqual(rows[0]["area"], "Brooklyn")
+        self.assertEqual(rows[0]["notes"], "vip")
+
+    def test_missing_optional_columns_default_blank(self):
+        text = "legacy_customer_id,customer_name\nL2,Joe\n"
+        rows = mc.parse_csv_text(text)
+        self.assertEqual(rows[0]["caller_phone_raw"], "")
+        self.assertEqual(rows[0]["area"], "")
+
+    def test_header_whitespace_and_case_normalized(self):
+        text = " Legacy_Customer_ID , Customer_Name \nL3,Ann\n"
+        rows = mc.parse_csv_text(text)
+        self.assertEqual(rows[0]["legacy_customer_id"], "L3")
+        self.assertEqual(rows[0]["customer_name"], "Ann")
+
+    def test_missing_required_column_raises(self):
+        with self.assertRaises(ValueError):
+            mc.parse_csv_text("customer_name\nJoe\n")
+
+
 if __name__ == "__main__":
     unittest.main()

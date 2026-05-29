@@ -14,6 +14,8 @@ Usage:
 """
 from __future__ import annotations
 
+import csv
+import io
 import re
 
 # ---------------------------------------------------------------------------
@@ -149,3 +151,30 @@ def classify_row(write_fields, *, phone_norm, legacy_exists,
 
     return {"decision": "insert_with_warning",
             "reason": "no phone, no name match", "conflict_type": None}
+
+
+CSV_COLUMNS = ("legacy_customer_id", "customer_name", "caller_phone_raw", "area",
+               "service_state", "marketing_source", "first_contact_date",
+               "last_known_equipment", "notes")
+REQUIRED_COLUMNS = ("legacy_customer_id", "customer_name")
+
+
+def parse_csv_text(text):
+    """Parse CSV text into a list of dicts with all CSV_COLUMNS present (missing -> '').
+    Header keys are stripped + lowercased. Raises ValueError if a required column is absent."""
+    reader = csv.DictReader(io.StringIO(text))
+    header = [(h or "").strip().lower() for h in (reader.fieldnames or [])]
+    missing = [c for c in REQUIRED_COLUMNS if c not in header]
+    if missing:
+        raise ValueError("CSV missing required column(s): %s" % ", ".join(missing))
+    rows = []
+    for raw in reader:
+        norm = {(k or "").strip().lower(): (v or "").strip() for k, v in raw.items()}
+        rows.append({c: norm.get(c, "") for c in CSV_COLUMNS})
+    return rows
+
+
+def read_csv_rows(path):
+    """Read a CSV file (utf-8-sig tolerant) and return parsed rows."""
+    from pathlib import Path
+    return parse_csv_text(Path(path).read_text(encoding="utf-8-sig"))
