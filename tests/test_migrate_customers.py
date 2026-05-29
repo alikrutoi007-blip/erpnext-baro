@@ -99,5 +99,61 @@ class TestDetectFieldConflicts(unittest.TestCase):
         self.assertEqual(mc.detect_field_conflicts(w, existing), [])
 
 
+class TestClassifyRow(unittest.TestCase):
+    BASE = {"customer_name": "X", "city_area": "Miami", "service_state": "Florida",
+            "last_known_equipment": "", "first_seen": ""}
+
+    def test_skip_already_imported(self):
+        r = mc.classify_row(self.BASE, phone_norm="+12125550101",
+                            legacy_exists=True, phone_match_ids=[], existing_customer=None,
+                            name_match_id=None)
+        self.assertEqual(r["decision"], "skip_already_imported")
+
+    def test_insert_new_when_phone_no_match(self):
+        r = mc.classify_row(self.BASE, phone_norm="+12125550101",
+                            legacy_exists=False, phone_match_ids=[], existing_customer=None,
+                            name_match_id=None)
+        self.assertEqual(r["decision"], "insert_new")
+
+    def test_update_missing_only_on_clean_single_match(self):
+        existing = {"customer_name": "X", "city_area": "", "service_state": "",
+                    "last_known_equipment": "", "first_seen": ""}
+        r = mc.classify_row(self.BASE, phone_norm="+12125550101",
+                            legacy_exists=False, phone_match_ids=["CUST-1"],
+                            existing_customer=existing, name_match_id=None)
+        self.assertEqual(r["decision"], "update_missing_only")
+        self.assertEqual(r["existing_customer_id"], "CUST-1")
+
+    def test_conflict_skip_on_field_conflict(self):
+        existing = {"customer_name": "Different Co", "city_area": "Orlando",
+                    "service_state": "Florida", "last_known_equipment": "", "first_seen": ""}
+        r = mc.classify_row(self.BASE, phone_norm="+12125550101",
+                            legacy_exists=False, phone_match_ids=["CUST-1"],
+                            existing_customer=existing, name_match_id=None)
+        self.assertEqual(r["decision"], "conflict_skip")
+        self.assertEqual(r["conflict_type"], "field_conflict")
+        self.assertTrue(r["conflicts"])
+
+    def test_conflict_multi_phone(self):
+        r = mc.classify_row(self.BASE, phone_norm="+12125550101",
+                            legacy_exists=False, phone_match_ids=["CUST-1", "CUST-2"],
+                            existing_customer=None, name_match_id=None)
+        self.assertEqual(r["decision"], "conflict_multi_phone")
+        self.assertEqual(r["conflict_type"], "multi_phone")
+
+    def test_conflict_name_only_when_no_phone(self):
+        r = mc.classify_row(self.BASE, phone_norm="",
+                            legacy_exists=False, phone_match_ids=[], existing_customer=None,
+                            name_match_id="CUST-9")
+        self.assertEqual(r["decision"], "conflict_name_only")
+        self.assertEqual(r["existing_customer_id"], "CUST-9")
+
+    def test_insert_with_warning_when_no_phone_no_name(self):
+        r = mc.classify_row(self.BASE, phone_norm="",
+                            legacy_exists=False, phone_match_ids=[], existing_customer=None,
+                            name_match_id=None)
+        self.assertEqual(r["decision"], "insert_with_warning")
+
+
 if __name__ == "__main__":
     unittest.main()

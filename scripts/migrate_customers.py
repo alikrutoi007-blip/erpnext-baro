@@ -109,3 +109,43 @@ def detect_field_conflicts(write_fields, existing):
         if values_conflict(cv, ev):
             conflicts.append({"field": f, "csv_value": cv, "existing_value": ev})
     return conflicts
+
+
+def classify_row(write_fields, *, phone_norm, legacy_exists,
+                 phone_match_ids, existing_customer, name_match_id):
+    """Spec section 4 decision engine. Pure: caller supplies lookup results.
+
+    Returns a dict with at least 'decision', 'reason', 'conflict_type'.
+    Decisions: skip_already_imported | insert_new | update_missing_only |
+    conflict_skip | conflict_multi_phone | conflict_name_only | insert_with_warning
+    """
+    if legacy_exists:
+        return {"decision": "skip_already_imported",
+                "reason": "legacy_customer_id already imported", "conflict_type": None}
+
+    if phone_norm:
+        n = len(phone_match_ids)
+        if n == 0:
+            return {"decision": "insert_new", "reason": "no phone match",
+                    "conflict_type": None}
+        if n == 1:
+            conflicts = detect_field_conflicts(write_fields, existing_customer or {})
+            if conflicts:
+                return {"decision": "conflict_skip",
+                        "reason": "field conflict with existing customer",
+                        "conflict_type": "field_conflict", "conflicts": conflicts,
+                        "existing_customer_id": phone_match_ids[0]}
+            return {"decision": "update_missing_only",
+                    "reason": "single phone match, fill blanks",
+                    "conflict_type": None, "existing_customer_id": phone_match_ids[0]}
+        return {"decision": "conflict_multi_phone",
+                "reason": "%d customers share this phone" % n,
+                "conflict_type": "multi_phone", "conflicts": list(phone_match_ids)}
+
+    if name_match_id:
+        return {"decision": "conflict_name_only",
+                "reason": "name-only match is unsafe", "conflict_type": "name_only",
+                "existing_customer_id": name_match_id}
+
+    return {"decision": "insert_with_warning",
+            "reason": "no phone, no name match", "conflict_type": None}
