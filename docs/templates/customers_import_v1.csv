@@ -1,0 +1,3 @@
+legacy_customer_id,customer_name,caller_phone_raw,area,service_state,marketing_source,first_contact_date,last_known_equipment,notes
+EXAMPLE-001,Sunrise Diner,(212) 555-0101,Brooklyn,,Google,2023-04-12,Combi Oven,Net-30 account
+EXAMPLE-002,Bayfront Cafe,305-555-0199,Miami FL,Florida,Referral,2022-11-03,Walk-in Cooler,Prefers morning calls
