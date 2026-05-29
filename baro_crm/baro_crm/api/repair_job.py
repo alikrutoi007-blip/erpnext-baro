@@ -1086,11 +1086,20 @@ def search_link(doctype, query="", limit=10):
         "Lead Source": "name",
     }.get(doctype, "name")
 
+    want_warn = doctype == "Customer" and frappe.db.has_column("Customer", "duplicate_warning")
+    fields = ["name", title_field] + (["duplicate_warning"] if want_warn else [])
+
     rows = frappe.get_list(
         doctype,
-        fields=["name", title_field],
+        fields=fields,
         or_filters=[["name", "like", q], [title_field, "like", q]] if query else None,
         order_by="modified desc",
         limit_page_length=limit,
     )
-    return [{"value": r["name"], "label": r.get(title_field) or r["name"]} for r in rows]
+    out = []
+    for r in rows:
+        item = {"value": r["name"], "label": r.get(title_field) or r["name"]}
+        if want_warn and r.get("duplicate_warning"):
+            item["warn"] = 1
+        out.append(item)
+    return out
