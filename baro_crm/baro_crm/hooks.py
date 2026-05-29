@@ -34,6 +34,24 @@ fixtures = [
         ],
     },
     {
+        "dt": "Custom Field",
+        "filters": [
+            ["dt", "=", "Customer"],
+            ["fieldname", "in", [
+                "baro_crm_section",
+                "normalized_phone",
+                "legacy_customer_id",
+                "source_system",
+                "import_batch_id",
+                "duplicate_warning",
+                "city_area",
+                "service_state",
+                "first_seen",
+                "last_known_equipment",
+            ]],
+        ],
+    },
+    {
         "dt": "Role",
         "filters": [["name", "in", ["Baro Dispatcher", "Baro Reader"]]],
     },
