@@ -16,7 +16,7 @@ Original roadmap had 5 sub-projects (A–E). E shipped 2026-05-20. During the F 
 | 1 | F | **Create Repair Job drawer (in-cockpit) + minimal dedup pre-check** | 2–3 days | **✓ Shipped 2026-05-21.** Tag `create-rj-drawer-shipped`. Backend smoke + core drawer browser checks green. Also landed in F: Phase B audit polish (bug 1.1 popover, focus trap, extractError, jobsById map, renderRow/kanbanCardHtml extraction, contrast bump) + Phase C kanban scale UX (page-level scroll, sticky column heads, active-only default + toggle, city filter, compact cards, Load more, terminal-status filtering server-side). |
 | 2 | J | **ERPNext workspace integration** — cockpit added to main sidebar, default landing for `Baro Dispatcher` role profile | 0.5–1 day | **✓ Shipped 2026-05-22.** Tag `workspace-integration-shipped`. Baro CRM workspace (already at `workspace/baro_crm/baro_crm.json`) carries the `/repair-jobs` shortcut. Added Baro Dispatcher Role fixture + `role_home_page` hook so users with that role land on `/repair-jobs` after login. Workspace stays public, visible to all desk users. |
 | 3 | G | **Views + city/state filters + sorting** — 10 named views (My Queue, Unassigned, Active, Today, Needs Follow-up, Production, Waiting Money, Warranty, Archive, Spam/Unrelated), city chip already lives in cockpit (delivered in F-Phase C — needs view-aware persistence in G), date sort dropdown (`modified desc` default, `call_datetime desc`, `creation desc`, `next_follow_up_datetime asc`, `urgency`, `oldest stuck first` via `modified asc + status NOT IN terminal`), backend `get_jobs(sort_by=...)`. | 2–3 days | **✓ Shipped 2026-05-24.** Tag `views-shipped`. 10 sidebar views with per-view counts (`get_view_counts`). Backend filters extended with `statuses`, `assignee=me`, `unassigned`, `needs_followup`. Calendar popover for explicit `date_from`/`date_to`. Top controls reorganized into 3 rows: state tabs / control bar (List·Kanban · View: X · City · Date type · Sort · More filters) / slim date strip (Today · This week · Overdue · Range… · Clear). City + date + sort persist across view switches. |
-| 4 | K | **Existing Customer Migration** — bulk import 5–6k existing clients (Customer, Contact, Address; later Customer Equipment / history). New fields: `normalized_phone`, `legacy_customer_id`, `source_system`, `import_batch_id`, `duplicate_warning`, `service_state`, `city_area`. Dry-run first, chunks of 500–1000. **No auto-fuzzy-merge**; exact phone/email/name/address only, fuzzy matches become `duplicate_warning` flags. | 2–4 days | pending — blocks H and B |
+| 4 | K | **Existing Customer Migration** — bulk import 5–6k existing clients (Customer, Contact, Address; later Customer Equipment / history). New fields: `normalized_phone`, `legacy_customer_id`, `source_system`, `import_batch_id`, `duplicate_warning`, `service_state`, `city_area`. Dry-run first, chunks of 500–1000. **No auto-fuzzy-merge**; exact phone/email/name/address only, fuzzy matches become `duplicate_warning` flags. | 2–4 days | **in-flight** — code built (6 units, 12 commits); live verify blocked on server; schema **scope-revised 2026-05-29** (see revision below). |
 | 5 | H | **Full Dedup UX + Attach-to-existing flow** — Possible Match panel with `[Attach to existing RJ]` / `[Create new anyway]` buttons; backend `find_possible_matches(phone, name, address, equipment)`; UI for attaching a new call to an existing active RJ | 3–4 days | pending |
 | 6 | L | **Client Work Group + Teams Automation** — on `Diagnostics Paid` or `Technician Assigned`, create Project/Client Work Group if not already created. Add Dispatcher, Estimate Manager, Production Manager, Technician, Supply, Accounting, Regular Client Manager. Default ToDos/Tasks. Store back-reference on Repair Job (`client_group_project`, `client_work_group` — fields already exist). Teams sync is **phase 2**: create/update Teams chat/channel via Microsoft Graph / Power Automate / Make, store Teams link on RJ. See existing `docs/lead_group_automation.md`. | 2–4 days CRM + 2–4 days Teams | pending |
 | 7 | I | **Lead Intake architectural decision** — confirmed status-based 2026-05-21: `New` / `Need Follow-up` are intake (pre-qualification); `Diagnostics Offered` onward is qualified RJ; Spam/Unrelated/Lost are terminal pre-qual buckets. Implementation = formalizing views in G + Spam/Unrelated sidebar item. | ~1 day | pending — folds into G |
@@ -34,6 +34,66 @@ Original roadmap had 5 sub-projects (A–E). E shipped 2026-05-20. During the F 
 - Drawer itself + audit polish (status popover bug fix, `extractError`, focus trap helper, kanbanCardHtml/renderRow extraction, `state.jobsById` map)
 - **Minimal dedup pre-check only**: warning banner if normalized phone matches existing Customer/Contact OR if active RJ exists for same customer/phone/equipment within recent window. Buttons: `[Open existing]` / `[Create anyway]`. No fuzzy auto-link, no merge, no attach flow — those belong to H.
 - Scale handling: kanban columns natural height (no internal scroll), sticky column heads, page-level scroll, API limit raised to 500 default / 2000 max, "Load more" affordance, `state.jobsById` map.
+
+---
+
+## Revision 2026-05-29 — Customer-centric architecture expansion
+
+New stakeholder requirements approved. The CRM expands around **Customer**, with a refined core data model and 6 new capabilities. This revision records the approved requirements and a **proposed** decomposition + sequencing. Each new sub-project still gets its own design doc + plan before code.
+
+### Approved core data model
+
+| Object | Meaning |
+|---|---|
+| **Customer** | The payer / account. Financial history (invoices, payments, lifetime value) belongs here. |
+| **Customer Site** | A restaurant / location / service address. Equipment history belongs mostly here (also visible from Customer). **New object.** |
+| **Contact** | A person — caller / manager / bookkeeper. |
+| **Repair Job** | Service work performed **at a Site**, billed to the **Customer**. |
+
+Rules:
+- One payer with 3 restaurants = **1 Customer + 3 Sites**.
+- Three different payers at three addresses = **3 Customers**.
+- Financial history → Customer/payer. Equipment history → Site (surfaced on Customer too).
+
+This formalizes the "Customer Site" layer that the 2026-05-21 ideal-architecture doc only implied via Address. It is foundational: Customer Chart (B), dedup (H), and any equipment model depend on it.
+
+### The 6 new capabilities → sub-project mapping
+
+| New item | Maps to | Notes |
+|---|---|---|
+| 1. Customer type: New / Regular / VIP / Blacklist | **field ships in K** (`baro_client_type`) + small type-driven UX follow-on (badges, blacklist guardrails) | Field is account-level and safe to migrate now. |
+| 2. Customer Chart expanded (tasks, finance, invoices, payments, docs, calls, emails) | **B** (expanded scope) | Already on roadmap; scope grows. Depends on **S** (Sites). |
+| 3. RingCentral integration (click-to-call first, then inbound logging / screen pop) | **NEW sub-project M** | Needs server + RingCentral app creds. Phased: click-to-call → inbound. |
+| 4. CRM email send/receive, linked to Customer/RJ | **NEW sub-project N** | Needs server + mail account / ERPNext Email Account. |
+| 5. Duplicate-check button (no auto-merge, show possible matches) | **H** (the button is H's entry point) | Reaffirms "no silent merge." Pairs with K. |
+| 6. Customer Sites / Locations model | **NEW sub-project S (foundational)** | Build the **model** now; **defer site data migration** (stakeholder). |
+
+### K scope change (in-flight sub-project)
+
+Stakeholder: *"Do not import Sites yet unless data is clean. Add only safe customer-level fields now: `baro_client_type`, `source_system`, `import_batch_id`, `duplicate_warning`. Keep address/site migration as a follow-up project."*
+
+Effect on the already-built K (9 Customer fields shipped to the fixture, not yet deployed — server down):
+- **Add:** `baro_client_type` (Select: New / Regular / VIP / Blacklist).
+- **Keep (customer-level identity / dedup infra — required for K's purpose):** `normalized_phone`, `legacy_customer_id`, `source_system`, `import_batch_id`, `duplicate_warning`.
+- **Defer to the Sites follow-up (location / equipment data):** `city_area`, `service_state`, `last_known_equipment`, and `first_seen` (pending the field-scope decision below).
+
+K's live verification (T12 smoke, T15 amber dot, T16 close-out) is **blocked** until the server is back. The schema-trim + `baro_client_type` revision is **pending the field-scope decision** (open question 1 below) and will be done offline once confirmed.
+
+### Proposed sequencing (server-down-aware)
+
+Designable offline now (no server): **S** (Sites model), **B** (Customer Chart), **H** (dedup button), the K schema revision.
+Need the server / external creds (do later): K live verification + close-out, **M** (RingCentral), **N** (email), **D** (prod hardening).
+
+Proposed order: **K revision (offline) → S (Sites model, foundational) → B (Customer Chart) → H (dedup button) → [server back] K verify/close-out → M → N.** Folds: customer-type UX rides on B/cockpit; I (intake) still folds into G (shipped).
+
+### Open decisions (surfaced to stakeholder 2026-05-29)
+
+1. **K field scope** — trim to safe set + `baro_client_type` (recommended), keep all 9 + type, or strictly the 4 named (would break dedup)?
+2. **`baro_client_type` default** for migrated existing customers — Regular (recommended), blank, or New?
+3. **Customer Sites** — build the model now as foundation (migration still deferred) or defer the model entirely?
+4. **What to deep-brainstrom first** among S / B / H.
+
+Decisions 1–2 unblock the K offline revision; 3–4 set what we design next.
 
 ---
 
