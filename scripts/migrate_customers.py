@@ -69,3 +69,43 @@ def infer_service_state(area="", explicit_state=""):
                 elif kw in a:               # substring for multi-word names
                     return canon
     return ""
+
+
+# Fields compared to decide "conflict" vs "fill blank" on a single phone match.
+COMPARE_FIELDS = ("customer_name", "city_area", "service_state",
+                  "last_known_equipment", "first_seen")
+
+
+def build_write_fields(row, source_system="", batch_id=""):
+    """Resolve a raw CSV row into the Customer fields we intend to write."""
+    return {
+        "customer_name": (row.get("customer_name") or "").strip(),
+        "normalized_phone": normalize_phone_local(row.get("caller_phone_raw")),
+        "legacy_customer_id": (row.get("legacy_customer_id") or "").strip(),
+        "source_system": source_system,
+        "import_batch_id": batch_id,
+        "city_area": (row.get("area") or "").strip(),
+        "service_state": infer_service_state(row.get("area", ""),
+                                             row.get("service_state", "")),
+        "first_seen": (row.get("first_contact_date") or "").strip(),
+        "last_known_equipment": (row.get("last_known_equipment") or "").strip(),
+    }
+
+
+def values_conflict(csv_value, existing_value):
+    """True only when BOTH are non-empty AND differ after casefold+strip."""
+    a = (csv_value or "").strip()
+    b = (existing_value or "").strip()
+    if not a or not b:
+        return False
+    return a.casefold() != b.casefold()
+
+
+def detect_field_conflicts(write_fields, existing):
+    """List of conflicting compare-fields between the CSV row and an existing Customer."""
+    conflicts = []
+    for f in COMPARE_FIELDS:
+        cv, ev = write_fields.get(f, ""), existing.get(f, "")
+        if values_conflict(cv, ev):
+            conflicts.append({"field": f, "csv_value": cv, "existing_value": ev})
+    return conflicts

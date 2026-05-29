@@ -46,5 +46,58 @@ class TestInferServiceState(unittest.TestCase):
         self.assertEqual(mc.infer_service_state("Springfield", ""), "")
 
 
+class TestBuildWriteFields(unittest.TestCase):
+    def test_resolves_phone_and_state(self):
+        row = {
+            "legacy_customer_id": "L1", "customer_name": "Sunrise Diner",
+            "caller_phone_raw": "212-555-0101", "area": "Brooklyn",
+            "service_state": "", "first_contact_date": "2023-04-01",
+            "last_known_equipment": "Combi Oven",
+        }
+        w = mc.build_write_fields(row, source_system="legacy", batch_id="b1")
+        self.assertEqual(w["normalized_phone"], "+12125550101")
+        self.assertEqual(w["service_state"], "New York")
+        self.assertEqual(w["customer_name"], "Sunrise Diner")
+        self.assertEqual(w["city_area"], "Brooklyn")
+        self.assertEqual(w["legacy_customer_id"], "L1")
+        self.assertEqual(w["source_system"], "legacy")
+        self.assertEqual(w["import_batch_id"], "b1")
+        self.assertEqual(w["first_seen"], "2023-04-01")
+        self.assertEqual(w["last_known_equipment"], "Combi Oven")
+
+
+class TestValuesConflict(unittest.TestCase):
+    def test_both_empty_no_conflict(self):
+        self.assertFalse(mc.values_conflict("", ""))
+
+    def test_fill_blank_is_not_conflict(self):
+        self.assertFalse(mc.values_conflict("Miami", ""))
+        self.assertFalse(mc.values_conflict("", "Miami"))
+
+    def test_case_insensitive_equal_no_conflict(self):
+        self.assertFalse(mc.values_conflict(" miami ", "Miami"))
+
+    def test_differ_is_conflict(self):
+        self.assertTrue(mc.values_conflict("Miami", "Orlando"))
+
+
+class TestDetectFieldConflicts(unittest.TestCase):
+    def test_name_conflict_surfaces(self):
+        w = {"customer_name": "Joe Pizza", "city_area": "Miami",
+             "service_state": "Florida", "last_known_equipment": "", "first_seen": ""}
+        existing = {"customer_name": "Joes Pizzeria", "city_area": "Miami",
+                    "service_state": "Florida", "last_known_equipment": "", "first_seen": ""}
+        conflicts = mc.detect_field_conflicts(w, existing)
+        self.assertEqual(len(conflicts), 1)
+        self.assertEqual(conflicts[0]["field"], "customer_name")
+
+    def test_no_conflict_when_existing_blank(self):
+        w = {"customer_name": "Joe Pizza", "city_area": "Miami",
+             "service_state": "Florida", "last_known_equipment": "Fryer", "first_seen": ""}
+        existing = {"customer_name": "Joe Pizza", "city_area": "",
+                    "service_state": "", "last_known_equipment": "", "first_seen": ""}
+        self.assertEqual(mc.detect_field_conflicts(w, existing), [])
+
+
 if __name__ == "__main__":
     unittest.main()
