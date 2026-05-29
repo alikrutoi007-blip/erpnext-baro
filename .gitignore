@@ -2,6 +2,9 @@
 .env
 *.env.local
 
+# Customer migration output (K) — contains customer phones/names, never commit
+migration_output/
+
 # Python
 __pycache__/
 *.pyc
