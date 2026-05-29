@@ -716,6 +716,14 @@ body.is-dragging .baro-cockpit .kanban-col-body.drop-valid:empty::after {
 .baro-cockpit .typeahead-item:hover,
 .baro-cockpit .typeahead-item.active { background: var(--brand-50); }
 .baro-cockpit .typeahead-item.system { color: var(--text-muted); font-style: italic; border-top: 1px solid var(--border); }
+.baro-cockpit .typeahead-item .dup-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: #f59e0b; /* amber */
+  vertical-align: middle;
+}
 .baro-cockpit .typeahead-locked {
   display: flex; align-items: center; gap: 6px;
   background: var(--brand-50); color: var(--brand-700);

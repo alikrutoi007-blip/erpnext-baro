@@ -2415,7 +2415,7 @@
       <button type="button" class="typeahead-item" role="option"
               data-customer-id="${escapeHtml(r.value)}"
               data-customer-name="${escapeHtml(r.label || r.value)}">
-        ${escapeHtml(r.label || r.value)}
+        ${r.warn ? '<span class="dup-dot" title="Possible duplicate — review"></span>' : ''}${escapeHtml(r.label || r.value)}
       </button>`).join('');
 
     let system = '';
