@@ -28,6 +28,10 @@ class TestNormalizePhone(unittest.TestCase):
     def test_garbage_no_digits(self):
         self.assertEqual(mc.normalize_phone_local("call me"), "")
 
+    def test_short_digit_string_returns_prefixed(self):
+        # Catch-all contract: non-10/11-digit input is returned +-prefixed, not validated.
+        self.assertEqual(mc.normalize_phone_local("55501"), "+55501")
+
 
 class TestInferServiceState(unittest.TestCase):
     def test_explicit_abbrev(self):
@@ -44,6 +48,10 @@ class TestInferServiceState(unittest.TestCase):
 
     def test_no_match_returns_empty(self):
         self.assertEqual(mc.infer_service_state("Springfield", ""), "")
+
+    def test_unknown_explicit_state_falls_back_to_area(self):
+        # 'California' is outside our 4-state scope; area inference should win.
+        self.assertEqual(mc.infer_service_state("Miami", "California"), "Florida")
 
 
 class TestBuildWriteFields(unittest.TestCase):
@@ -153,6 +161,12 @@ class TestClassifyRow(unittest.TestCase):
                             legacy_exists=False, phone_match_ids=[], existing_customer=None,
                             name_match_id=None)
         self.assertEqual(r["decision"], "insert_with_warning")
+
+    def test_single_match_without_existing_raises(self):
+        with self.assertRaises(ValueError):
+            mc.classify_row(self.BASE, phone_norm="+12125550101",
+                            legacy_exists=False, phone_match_ids=["CUST-1"],
+                            existing_customer=None, name_match_id=None)
 
 
 class TestParseCsvText(unittest.TestCase):

@@ -22,6 +22,8 @@ import re
 # Pure logic (no I/O) — unit-tested
 # ---------------------------------------------------------------------------
 
+# Order matters: first match wins when an area mentions more than one state.
+# Texas is listed first as the primary service territory; reorder with care.
 # Canonical state -> keyword tokens. Two-letter codes are matched as whole
 # tokens; multi-word names match as substrings.
 STATE_KEYWORDS = [
@@ -56,10 +58,14 @@ def infer_service_state(area="", explicit_state=""):
     An explicit (valid) state wins; otherwise infer from the area string."""
     e = (explicit_state or "").strip()
     if e:
+        if e in _CANON_STATES:           # already a canonical state name
+            return e
         el = e.casefold()
         for canon, kws in STATE_KEYWORDS:
             if el == canon.casefold() or el in kws:
                 return canon
+    # If explicit_state is non-empty but outside our 4-state scope, treat it as
+    # unknown and fall through to area inference.
     a = (area or "").casefold()
     if a:
         tokens = set(re.split(r"[^a-z]+", a))
@@ -80,6 +86,8 @@ COMPARE_FIELDS = ("customer_name", "city_area", "service_state",
 
 def build_write_fields(row, source_system="", batch_id=""):
     """Resolve a raw CSV row into the Customer fields we intend to write."""
+    # Note: 'notes' and 'marketing_source' are intentionally not returned here.
+    # The write layer folds them into a Customer Comment at import time.
     return {
         "customer_name": (row.get("customer_name") or "").strip(),
         "normalized_phone": normalize_phone_local(row.get("caller_phone_raw")),
@@ -131,7 +139,10 @@ def classify_row(write_fields, *, phone_norm, legacy_exists,
             return {"decision": "insert_new", "reason": "no phone match",
                     "conflict_type": None}
         if n == 1:
-            conflicts = detect_field_conflicts(write_fields, existing_customer or {})
+            if existing_customer is None:
+                raise ValueError(
+                    "existing_customer must be provided when phone_match_ids has one entry")
+            conflicts = detect_field_conflicts(write_fields, existing_customer)
             if conflicts:
                 return {"decision": "conflict_skip",
                         "reason": "field conflict with existing customer",
