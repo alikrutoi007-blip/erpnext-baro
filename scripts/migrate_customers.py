@@ -26,6 +26,10 @@ import re
 # Texas is listed first as the primary service territory; reorder with care.
 # Canonical state -> keyword tokens. Two-letter codes are matched as whole
 # tokens; multi-word names match as substrings.
+# RESERVED for the Customer Site model (sub-project S): as of the 2026-05-29
+# scope trim, service_state/city_area live on the Site (not the Customer), so
+# infer_service_state is no longer called by the customer migration. Kept and
+# tested here because S will reuse it for Site-level state inference.
 STATE_KEYWORDS = [
     ("Texas", ("tx", "texas", "houston", "dallas", "austin",
                "san antonio", "fort worth", "el paso")),
@@ -80,12 +84,20 @@ def infer_service_state(area="", explicit_state=""):
 
 
 # Fields compared to decide "conflict" vs "fill blank" on a single phone match.
-COMPARE_FIELDS = ("customer_name", "city_area", "service_state",
-                  "last_known_equipment", "first_seen")
+# Scope-trimmed 2026-05-29: location/equipment fields moved to the deferred
+# Customer Site model (sub-project S), so only customer_name remains comparable.
+COMPARE_FIELDS = ("customer_name",)
 
 
-def build_write_fields(row, source_system="", batch_id=""):
-    """Resolve a raw CSV row into the Customer fields we intend to write."""
+def build_write_fields(row, source_system="", batch_id="", client_type="Regular"):
+    """Resolve a raw CSV row into the safe Customer fields we intend to write.
+
+    Scope-trimmed 2026-05-29: only account-level identity/meta fields. Location
+    and equipment data (city_area, service_state, last_known_equipment,
+    first_seen) are deferred to the Customer Site model (sub-project S) and are
+    intentionally NOT written here. `client_type` defaults to Regular for
+    migrated existing customers.
+    """
     # Note: 'notes' and 'marketing_source' are intentionally not returned here.
     # The write layer folds them into a Customer Comment at import time.
     return {
@@ -94,11 +106,7 @@ def build_write_fields(row, source_system="", batch_id=""):
         "legacy_customer_id": (row.get("legacy_customer_id") or "").strip(),
         "source_system": source_system,
         "import_batch_id": batch_id,
-        "city_area": (row.get("area") or "").strip(),
-        "service_state": infer_service_state(row.get("area", ""),
-                                             row.get("service_state", "")),
-        "first_seen": (row.get("first_contact_date") or "").strip(),
-        "last_known_equipment": (row.get("last_known_equipment") or "").strip(),
+        "baro_client_type": client_type,
     }
 
 
@@ -260,10 +268,7 @@ def _insert_customer(client, call, write_fields, group, territory, *, duplicate_
         "legacy_customer_id": write_fields["legacy_customer_id"],
         "source_system": write_fields["source_system"],
         "import_batch_id": write_fields["import_batch_id"],
-        "city_area": write_fields["city_area"],
-        "service_state": write_fields["service_state"] or None,
-        "first_seen": write_fields["first_seen"] or None,
-        "last_known_equipment": write_fields["last_known_equipment"],
+        "baro_client_type": write_fields.get("baro_client_type") or "Regular",
         "duplicate_warning": 1 if duplicate_warning else 0,
     }
     created = client.create_doc("Customer", doc)
@@ -275,8 +280,7 @@ def _fill_blanks(client, customer_id, write_fields):
     existing = client.get_doc("Customer", customer_id)
     patch = {}
     fillable = ("normalized_phone", "legacy_customer_id", "source_system",
-                "import_batch_id", "city_area", "service_state",
-                "first_seen", "last_known_equipment")
+                "import_batch_id", "baro_client_type")
     for f in fillable:
         if not (existing.get(f) or "") and write_fields.get(f):
             patch[f] = write_fields[f]

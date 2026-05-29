@@ -12,6 +12,18 @@
 
 ---
 
+## Scope revision 2026-05-29 (stakeholder — supersedes the field list below)
+
+Customer-centric architecture expansion (roadmap Revision 2026-05-29) trimmed K's field set. The implemented code already reflects this:
+
+- **Customer custom fields shipped:** `baro_crm_section`, `normalized_phone`, `legacy_customer_id`, `source_system`, `import_batch_id`, `duplicate_warning`, **`baro_client_type`** (Select New/Regular/VIP/Blacklist; default `New`; migration writes `Regular`).
+- **Deferred to the Customer Site model (sub-project S), NOT shipped on Customer:** `city_area`, `service_state`, `first_seen`, `last_known_equipment`.
+- `build_write_fields` emits only the safe account-level keys + `baro_client_type`; `_insert_customer` / `_fill_blanks` write that set; `COMPARE_FIELDS = ("customer_name",)`. `infer_service_state` is retained (reserved for S) but no longer called.
+
+Where Task 1 / Phase D code blocks below list the old 9-field set, the trimmed set above wins.
+
+---
+
 ## Plan-phase decisions (resolving spec ambiguities — read before starting)
 
 These were settled during writing-plans self-review. They override the spec where noted.

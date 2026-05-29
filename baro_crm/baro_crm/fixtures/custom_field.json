@@ -114,48 +114,17 @@
  },
  {
   "doctype": "Custom Field",
-  "name": "Customer-city_area",
+  "name": "Customer-baro_client_type",
   "dt": "Customer",
-  "fieldname": "city_area",
-  "label": "City / Area",
-  "fieldtype": "Data",
-  "insert_after": "duplicate_warning",
-  "description": "City / neighborhood from the source 'area' column.",
-  "module": "Baro CRM"
- },
- {
-  "doctype": "Custom Field",
-  "name": "Customer-service_state",
-  "dt": "Customer",
-  "fieldname": "service_state",
-  "label": "Service State",
+  "fieldname": "baro_client_type",
+  "label": "Client Type",
   "fieldtype": "Select",
-  "options": "\nTexas\nFlorida\nNew York\nNew Jersey",
-  "insert_after": "city_area",
+  "options": "\nNew\nRegular\nVIP\nBlacklist",
+  "insert_after": "duplicate_warning",
+  "default": "New",
   "search_index": 1,
-  "description": "US state (TX/FL/NY/NJ). Explicit from source or inferred from area.",
-  "module": "Baro CRM"
- },
- {
-  "doctype": "Custom Field",
-  "name": "Customer-first_seen",
-  "dt": "Customer",
-  "fieldname": "first_seen",
-  "label": "First Seen",
-  "fieldtype": "Date",
-  "insert_after": "service_state",
-  "description": "First-contact date from the source data.",
-  "module": "Baro CRM"
- },
- {
-  "doctype": "Custom Field",
-  "name": "Customer-last_known_equipment",
-  "dt": "Customer",
-  "fieldname": "last_known_equipment",
-  "label": "Last Known Equipment",
-  "fieldtype": "Data",
-  "insert_after": "first_seen",
-  "description": "Free-text equipment note from the source. Future sub-project promotes this to a DocType.",
+  "in_standard_filter": 1,
+  "description": "Account relationship tier. Customer migration sets existing customers to Regular; New is the default for fresh records. VIP/Blacklist set manually.",
   "module": "Baro CRM"
  }
 ]

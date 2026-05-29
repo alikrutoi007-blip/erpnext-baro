@@ -55,7 +55,7 @@ class TestInferServiceState(unittest.TestCase):
 
 
 class TestBuildWriteFields(unittest.TestCase):
-    def test_resolves_phone_and_state(self):
+    def test_resolves_safe_account_fields(self):
         row = {
             "legacy_customer_id": "L1", "customer_name": "Sunrise Diner",
             "caller_phone_raw": "212-555-0101", "area": "Brooklyn",
@@ -64,14 +64,18 @@ class TestBuildWriteFields(unittest.TestCase):
         }
         w = mc.build_write_fields(row, source_system="legacy", batch_id="b1")
         self.assertEqual(w["normalized_phone"], "+12125550101")
-        self.assertEqual(w["service_state"], "New York")
         self.assertEqual(w["customer_name"], "Sunrise Diner")
-        self.assertEqual(w["city_area"], "Brooklyn")
         self.assertEqual(w["legacy_customer_id"], "L1")
         self.assertEqual(w["source_system"], "legacy")
         self.assertEqual(w["import_batch_id"], "b1")
-        self.assertEqual(w["first_seen"], "2023-04-01")
-        self.assertEqual(w["last_known_equipment"], "Combi Oven")
+        self.assertEqual(w["baro_client_type"], "Regular")
+        # Location/equipment deferred to the Customer Site model (sub-project S):
+        for deferred in ("city_area", "service_state", "first_seen", "last_known_equipment"):
+            self.assertNotIn(deferred, w)
+
+    def test_client_type_override(self):
+        w = mc.build_write_fields({"customer_name": "X"}, client_type="VIP")
+        self.assertEqual(w["baro_client_type"], "VIP")
 
 
 class TestValuesConflict(unittest.TestCase):
