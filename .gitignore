@@ -27,3 +27,6 @@ Thumbs.db
 
 # Virtualenv (lives outside the project but listed for safety)
 .venv/
+
+# Local sync/observability scratch
+weppy-project-sync/
